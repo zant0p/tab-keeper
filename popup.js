@@ -15,11 +15,11 @@ async function updateUI() {
     
     // Show config
     targetUrlEl.textContent = config.targetUrl || 'Not configured';
-    usernameEl.textContent = config.username ? config.username : 'Not configured';
+    usernameEl.textContent = config.username || 'Not configured';
 
     if (!config.enabled) {
       statusEl.className = 'status inactive';
-      statusEl.textContent = '⏸️ Tab Keeper is disabled';
+      statusEl.textContent = 'Tab Keeper is disabled';
       timerDisplay.style.display = 'none';
       stopCountdown();
       return;
@@ -27,7 +27,7 @@ async function updateUI() {
 
     if (!config.targetUrl) {
       statusEl.className = 'status inactive';
-      statusEl.textContent = '⚠️ No target URL configured';
+      statusEl.textContent = 'No target URL configured';
       timerDisplay.style.display = 'none';
       stopCountdown();
       return;
@@ -36,22 +36,22 @@ async function updateUI() {
     // Check current tab
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const currentTab = tabs[0];
-      const isOnTarget = currentTab.url && currentTab.url.startsWith(config.targetUrl);
+      const isOnTarget = currentTab && currentTab.url && currentTab.url.startsWith(config.targetUrl);
 
       if (isOnTarget) {
         statusEl.className = 'status active';
-        statusEl.textContent = '✅ On target tab';
+        statusEl.textContent = 'On target tab';
         timerDisplay.style.display = 'none';
         stopCountdown();
-      } else if (config.timerActive && config.timerStarted) {
+      } else if (config.timerActive && config.lastActivity) {
         statusEl.className = 'status waiting';
         const minutes = Math.round(config.timerDuration / 60000);
-        statusEl.textContent = `⏱️ Away from target (returning in ~${minutes} min)`;
+        statusEl.textContent = 'Away from target (returning in ~' + minutes + ' min)';
         timerDisplay.style.display = 'block';
-        startCountdown(config.timerStarted, config.timerDuration);
+        startCountdown(config.lastActivity, config.timerDuration);
       } else {
         statusEl.className = 'status waiting';
-        statusEl.textContent = '⏱️ Timer not started yet';
+        statusEl.textContent = 'Timer not started yet';
         timerDisplay.style.display = 'block';
         countdownEl.textContent = '--:--';
       }
@@ -60,7 +60,7 @@ async function updateUI() {
 }
 
 function startCountdown(startTime, duration) {
-  stopCountdown(); // Clear any existing timer
+  stopCountdown();
   
   const countdownEl = document.getElementById('countdown');
   
@@ -70,7 +70,8 @@ function startCountdown(startTime, duration) {
     
     const mins = Math.floor(remaining / 60000);
     const secs = Math.floor((remaining % 60000) / 1000);
-    countdownEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    countdownEl.textContent = 
+      String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
     
     if (remaining > 0) {
       countdownInterval = setTimeout(update, 1000);
