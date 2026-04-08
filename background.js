@@ -4,8 +4,10 @@
 const TIMER_MINUTES = 10;
 let switchBackTimeout = null;
 let timerStartTime = null;
+let timerDuration = null;
 let isSwitchingBack = false;
 let targetTabId = null;
+let timerRunning = false;
 
 // Initialize on install
 chrome.runtime.onInstalled.addListener(() => {
@@ -23,27 +25,34 @@ async function getTimerMs() {
   return (config.timerMinutes || TIMER_MINUTES) * 60 * 1000;
 }
 
-// Start or restart the timer
+// Start the timer (only if not already running)
 async function startTimer() {
+  if (timerRunning) {
+    console.log('Tab Keeper: Timer already running, not restarting');
+    return;
+  }
+  
   // Clear any existing timer
   if (switchBackTimeout) {
     clearTimeout(switchBackTimeout);
   }
   
-  const timerMs = await getTimerMs();
+  timerDuration = await getTimerMs();
   timerStartTime = Date.now();
+  timerRunning = true;
   
-  console.log(`Tab Keeper: Timer started - ${timerMs/60000} minutes`);
+  console.log(`Tab Keeper: Timer started - ${timerDuration/60000} minutes`);
   
   switchBackTimeout = setTimeout(async () => {
     await switchBackToTarget();
-  }, timerMs);
+  }, timerDuration);
   
   // Store timer state for popup to display
   chrome.storage.local.set({
     timerActive: true,
     timerStarted: timerStartTime,
-    timerDuration: timerMs
+    timerDuration: timerDuration,
+    timerRunning: true
   });
 }
 
@@ -54,12 +63,15 @@ function stopTimer() {
     switchBackTimeout = null;
   }
   timerStartTime = null;
+  timerDuration = null;
+  timerRunning = false;
   targetTabId = null;
   
   chrome.storage.local.set({
     timerActive: false,
     timerStarted: null,
-    timerDuration: null
+    timerDuration: null,
+    timerRunning: false
   });
   
   console.log('Tab Keeper: Timer stopped');
@@ -100,14 +112,16 @@ async function handleTabSwitch(newTabId) {
     const isTargetTab = tab.url && tab.url.startsWith(config.targetUrl);
     
     if (isTargetTab) {
-      console.log('Tab Keeper: On target tab');
+      console.log('Tab Keeper: On target tab - stopping timer');
       targetTabId = newTabId;
       stopTimer();
     } else {
-      console.log('Tab Keeper: Away from target tab - starting timer');
-      if (!timerStartTime) {
-        // Only start timer if not already running
+      console.log('Tab Keeper: Away from target tab');
+      if (!timerRunning) {
+        console.log('Tab Keeper: Timer not running - starting it');
         await startTimer();
+      } else {
+        console.log('Tab Keeper: Timer already running - continuing countdown');
       }
     }
   } catch (error) {
@@ -125,7 +139,7 @@ async function switchBackToTarget() {
     return;
   }
 
-  console.log('Tab Keeper: ⏰ Timer expired - switching back to target');
+  console.log('Tab Keeper: ⏰ TIMER EXPIRED - switching back to target');
   isSwitchingBack = true;
   stopTimer();
 
@@ -175,7 +189,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === 'checkLogin') {
-    // Content script is checking if login is needed
     sendResponse({ status: 'checked' });
   }
   
@@ -185,10 +198,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   if (request.action === 'getStatus') {
     // Popup requesting status
-    chrome.storage.local.get(['timerActive', 'timerStarted', 'timerDuration', 'targetUrl', 'enabled']).then((result) => {
+    chrome.storage.local.get(['timerActive', 'timerStarted', 'timerDuration', 'targetUrl', 'enabled', 'timerRunning']).then((result) => {
       sendResponse(result);
     });
-    return true; // Keep channel open for async response
+    return true;
+  }
+  
+  if (request.action === 'forceStartTimer') {
+    // Force start timer (for testing)
+    startTimer();
+    sendResponse({ status: 'started' });
+    return true;
   }
 });
 
@@ -289,6 +309,7 @@ function autoLoginFunction(creds) {
     }
   } else {
     console.log('Auto-login: Fields not found');
+    console.log('Username:', !!usernameField, 'Password:', !!passwordField);
   }
 }
 
@@ -296,15 +317,13 @@ function autoLoginFunction(creds) {
 chrome.alarms.create('timerCheck', { periodInMinutes: 1 });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'timerCheck' && timerStartTime) {
-    // Verify timer is still active
+  if (alarm.name === 'timerCheck' && timerRunning) {
+    console.log('Tab Keeper: Timer check - still running');
     const config = await chrome.storage.local.get(['targetUrl']);
     const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
     if (currentTab && config.targetUrl && !currentTab.url?.startsWith(config.targetUrl)) {
-      console.log('Tab Keeper: Timer check - still away from target');
-      // Restart timer to ensure it's still counting
-      await startTimer();
+      console.log('Tab Keeper: Still away from target, timer continuing');
     }
   }
 });
