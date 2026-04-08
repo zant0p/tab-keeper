@@ -54,7 +54,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   return true; // Keep channel open
-}
+});
 
 // Start when page is ready
 if (document.readyState === 'loading') {
