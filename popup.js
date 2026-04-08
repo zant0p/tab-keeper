@@ -95,25 +95,14 @@ document.getElementById('openOptions').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 
-document.getElementById('switchNow').addEventListener('click', async () => {
-  const config = await chrome.storage.local.get(['targetUrl']);
-  
-  if (!config.targetUrl) {
-    alert('No target URL configured!');
-    return;
-  }
-
-  const tabs = await chrome.tabs.query({});
-  const existingTab = tabs.find(tab => tab.url && tab.url.startsWith(config.targetUrl));
-
-  if (existingTab) {
-    await chrome.tabs.update(existingTab.id, { active: true });
-    await chrome.windows.update(existingTab.windowId, { focused: true });
-  } else {
-    await chrome.tabs.create({ url: config.targetUrl });
-  }
-  
-  window.close();
+document.getElementById('switchNow').addEventListener('click', () => {
+  // Ask background script to switch (it handles finding/creating the tab)
+  chrome.runtime.sendMessage({ action: 'manualSwitch' }, (response) => {
+    if (response && response.status === 'switching') {
+      window.close();
+    }
+  });
+  return false;
 });
 
 // Update UI on load

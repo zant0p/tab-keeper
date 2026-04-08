@@ -34,14 +34,13 @@ async function startInactivityTimer() {
   const timerMs = await getTimerMs();
   lastActivityTime = Date.now();
   
-  console.log(`Tab Keeper: Inactivity timer started - ${timerMs/60000} minutes`);
+  console.log('Tab Keeper: Inactivity timer started - ' + (timerMs/60000) + ' minutes');
   
   // Set timeout
   switchBackTimeout = setTimeout(async () => {
     const timeSinceActivity = Date.now() - lastActivityTime;
-    const timeSinceStart = Date.now() - lastActivityTime;
     
-    console.log(`Tab Keeper: Timeout fired. Time since activity: ${timeSinceActivity/1000}s`);
+    console.log('Tab Keeper: Timeout fired. Time since activity: ' + (timeSinceActivity/1000) + 's');
     
     // Only switch back if truly inactive for full duration
     if (timeSinceActivity >= timerMs) {
@@ -90,14 +89,11 @@ async function installActivityListener(tabId) {
   if (activityListenerInstalled) return;
   
   try {
-    // Inject content script that reports activity
     await chrome.scripting.executeScript({
       target: { tabId: tabId },
       func: () => {
-        // Track activity events
         ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(event => {
           window.addEventListener(event, () => {
-            // Debounce - don't spam messages
             if (!window.lastActivityTime || Date.now() - window.lastActivityTime > 5000) {
               window.lastActivityTime = Date.now();
               chrome.runtime.sendMessage({ action: 'userActivity' });
@@ -175,38 +171,55 @@ async function switchBackToTarget() {
     return;
   }
 
-  console.log('Tab Keeper: ⏰ INACTIVITY TIMEOUT - switching back to target');
+  console.log('Tab Keeper: TIMER EXPIRED - switching back to target');
   isSwitchingBack = true;
   stopTimer();
 
   try {
-    // Find existing tab with target URL
-    const tabs = await chrome.tabs.query({});
-    const existingTab = tabs.find(tab => tab.url && tab.url.startsWith(config.targetUrl));
-
+    // Find existing tab with target URL - search ALL windows
+    const allTabs = await chrome.tabs.query({});
+    
+    console.log('Tab Keeper: Found ' + allTabs.length + ' total tabs');
+    
+    // Look for exact URL match first
+    let existingTab = allTabs.find(tab => tab.url === config.targetUrl);
+    
+    // If no exact match, look for URL that starts with target
+    if (!existingTab) {
+      existingTab = allTabs.find(tab => tab.url && tab.url.startsWith(config.targetUrl));
+    }
+    
+    // If still no match, try without trailing slash
+    if (!existingTab) {
+      const targetNoSlash = config.targetUrl.replace(/\/$/, '');
+      existingTab = allTabs.find(tab => tab.url && tab.url.replace(/\/$/, '') === targetNoSlash);
+    }
+    
     if (existingTab) {
-      console.log('Tab Keeper: Found existing tab:', existingTab.id);
+      console.log('Tab Keeper: Found existing target tab: ' + existingTab.id + ' in window ' + existingTab.windowId);
       
-      // Focus the window first
+      // First focus the window
       await chrome.windows.update(existingTab.windowId, { focused: true });
       
       // Then activate the tab
-      await chrome.tabs.update(existingTab.id, { active: true });
+      await chrome.tabs.update(existingTab.id, { active: true, highlighted: true });
       
       targetTabId = existingTab.id;
       
-      // Wait a moment then check for login
+      console.log('Tab Keeper: Switched to tab ' + existingTab.id);
+      
+      // Wait then check for login
       setTimeout(async () => {
         try {
           await chrome.tabs.sendMessage(existingTab.id, { action: 'checkLogin' });
         } catch (e) {
-          console.log('Tab Keeper: Could not send message, will retry');
+          console.log('Tab Keeper: Could not send login check message');
         }
       }, 1000);
       
     } else {
-      console.log('Tab Keeper: Creating new tab');
-      const newTab = await chrome.tabs.create({ url: config.targetUrl });
+      console.log('Tab Keeper: No existing tab found, creating new tab');
+      const newTab = await chrome.tabs.create({ url: config.targetUrl, active: true });
       targetTabId = newTab.id;
     }
     
@@ -233,7 +246,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === 'userActivity') {
-    // User was active on a non-target tab
     recordActivity();
     sendResponse({ status: 'recorded' });
   }
@@ -242,6 +254,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.storage.local.get(['timerActive', 'lastActivity', 'timerDuration', 'targetUrl', 'enabled']).then((result) => {
       sendResponse(result);
     });
+    return true;
+  }
+  
+  if (request.action === 'manualSwitch') {
+    // Manual switch request from popup
+    switchBackToTarget();
+    sendResponse({ status: 'switching' });
     return true;
   }
 });
@@ -260,7 +279,7 @@ async function performAutoLogin(tab) {
     return;
   }
 
-  console.log('Tab Keeper: Auto-login for:', config.username);
+  console.log('Tab Keeper: Auto-login for: ' + config.username);
 
   try {
     await chrome.scripting.executeScript({
@@ -304,7 +323,6 @@ function autoLoginFunction(creds) {
     'ion-button[name="button-login"]',
     'ion-button[type="submit"]',
     '[name="button-login"]',
-    // Specific path from DevTools
     'app-root ion-app ion-router-outlet app-login ion-content ion-card > ion-button',
     'body > app-root > ion-app > ion-router-outlet > app-login > ion-content > ion-card > div:nth-child(4) > ion-button'
   ];
@@ -337,7 +355,6 @@ function autoLoginFunction(creds) {
       usernameField.dispatchEvent(new Event('input', { bubbles: true }));
       usernameField.dispatchEvent(new Event('change', { bubbles: true }));
     } else if (usernameField.tagName === 'ION-INPUT') {
-      // Ionic input - set value and trigger event
       usernameField.value = creds.username;
       usernameField.dispatchEvent(new CustomEvent('ionInput', { bubbles: true, detail: { value: creds.username } }));
       usernameField.dispatchEvent(new Event('input', { bubbles: true }));
@@ -355,49 +372,43 @@ function autoLoginFunction(creds) {
     
     console.log('Auto-login: Fields filled, waiting for button to enable...');
     
-    // Wait for button to become enabled (Ionic buttons disable until form is valid)
+    // Wait for button to become enabled
     setTimeout(() => {
-      // Try regular button first
       if (submitButton) {
         if (submitButton.tagName === 'ION-BUTTON') {
-          // Ionic button - need to click the native button inside shadow DOM
           console.log('Auto-login: Ionic button detected');
           
-          // Try to enable it first by removing disabled attribute
+          // Enable the button
           submitButton.removeAttribute('disabled');
           submitButton.removeAttribute('aria-disabled');
           
-          // Click the native button inside shadow DOM
+          // Click native button in shadow DOM
           const nativeButton = submitButton.shadowRoot?.querySelector('button');
           if (nativeButton) {
             console.log('Auto-login: Clicking native button in shadow DOM');
             nativeButton.click();
           } else {
-            // Fallback: click the ion-button itself
             console.log('Auto-login: Clicking ion-button directly');
             submitButton.click();
           }
         } else {
-          // Regular button
           console.log('Auto-login: Clicking submit button');
           submitButton.click();
         }
       } else {
-        // No button found, try to submit form directly
         const form = usernameField.closest('form');
         if (form) {
           console.log('Auto-login: Submitting form directly');
           form.submit();
         } else {
-          console.log('Auto-login: No form found, trying Enter key');
-          // Try pressing Enter on the password field
+          console.log('Auto-login: No button found, trying Enter key');
           passwordField.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
         }
       }
-    }, 500); // Wait 500ms for button to enable
+    }, 500);
     
   } else {
     console.log('Auto-login: Fields not found');
-    console.log('Username:', !!usernameField, 'Password:', !!passwordField);
+    console.log('Username field:', !!usernameField, 'Password field:', !!passwordField);
   }
 }
