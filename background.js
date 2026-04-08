@@ -2,13 +2,14 @@
 // Monitors active tab, enforces 10-min return timer, handles auto-login
 
 const TIMER_MINUTES = 10;
-let switchBackTimer = null;
+let switchBackTimeout = null;
+let timerStartTime = null;
 let isSwitchingBack = false;
+let targetTabId = null;
 
 // Initialize on install
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Tab Keeper installed');
-  // Set default timer if not set
   chrome.storage.local.get(['timerMinutes'], (result) => {
     if (!result.timerMinutes) {
       chrome.storage.local.set({ timerMinutes: TIMER_MINUTES });
@@ -16,170 +17,239 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// Get current timer duration in ms
+async function getTimerMs() {
+  const config = await chrome.storage.local.get(['timerMinutes']);
+  return (config.timerMinutes || TIMER_MINUTES) * 60 * 1000;
+}
+
+// Start or restart the timer
+async function startTimer() {
+  // Clear any existing timer
+  if (switchBackTimeout) {
+    clearTimeout(switchBackTimeout);
+  }
+  
+  const timerMs = await getTimerMs();
+  timerStartTime = Date.now();
+  
+  console.log(`Tab Keeper: Timer started - ${timerMs/60000} minutes`);
+  
+  switchBackTimeout = setTimeout(async () => {
+    await switchBackToTarget();
+  }, timerMs);
+  
+  // Store timer state for popup to display
+  chrome.storage.local.set({
+    timerActive: true,
+    timerStarted: timerStartTime,
+    timerDuration: timerMs
+  });
+}
+
+// Stop the timer (when user is on target tab)
+function stopTimer() {
+  if (switchBackTimeout) {
+    clearTimeout(switchBackTimeout);
+    switchBackTimeout = null;
+  }
+  timerStartTime = null;
+  targetTabId = null;
+  
+  chrome.storage.local.set({
+    timerActive: false,
+    timerStarted: null,
+    timerDuration: null
+  });
+  
+  console.log('Tab Keeper: Timer stopped');
+}
+
 // Monitor tab changes
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  handleTabSwitch(activeInfo.tabId);
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  await handleTabSwitch(activeInfo.tabId);
 });
 
-// Also monitor window changes (in case user switches windows)
-chrome.windows.onFocusChanged.addListener((windowId) => {
+// Monitor window focus changes
+chrome.windows.onFocusChanged.addListener(async (windowId) => {
   if (windowId !== chrome.windows.WINDOW_ID_NONE) {
-    chrome.tabs.query({ active: true, windowId: windowId }, (tabs) => {
+    chrome.tabs.query({ active: true, windowId: windowId }, async (tabs) => {
       if (tabs[0]) {
-        handleTabSwitch(tabs[0].id);
+        await handleTabSwitch(tabs[0].id);
       }
     });
   }
 });
 
+// Handle tab switch logic
 async function handleTabSwitch(newTabId) {
   if (isSwitchingBack) {
+    console.log('Tab Keeper: Ignoring switch (we triggered it)');
     isSwitchingBack = false;
-    return; // Don't restart timer when we're the ones switching
-  }
-
-  // Clear existing timer
-  if (switchBackTimer) {
-    clearTimeout(switchBackTimer);
-    switchBackTimer = null;
-  }
-
-  // Check if this is our designated tab
-  const config = await chrome.storage.local.get(['targetUrl', 'enabled']);
-  
-  if (!config.enabled || !config.targetUrl) {
-    return; // Extension disabled or no target configured
-  }
-
-  // Get the new active tab's URL
-  const tab = await chrome.tabs.get(newTabId);
-  
-  if (tab.url && tab.url.startsWith(config.targetUrl)) {
-    // User is on the target tab - no timer needed
-    console.log('Tab Keeper: On target tab, timer cleared');
     return;
   }
 
-  // User switched away - start timer
-  console.log(`Tab Keeper: User switched away from target tab. Starting ${TIMER_MINUTES} min timer...`);
+  const config = await chrome.storage.local.get(['targetUrl', 'enabled']);
   
-  switchBackTimer = setTimeout(async () => {
-    await switchBackToTarget();
-  }, TIMER_MINUTES * 60 * 1000);
+  if (!config.enabled || !config.targetUrl) {
+    return;
+  }
+
+  try {
+    const tab = await chrome.tabs.get(newTabId);
+    const isTargetTab = tab.url && tab.url.startsWith(config.targetUrl);
+    
+    if (isTargetTab) {
+      console.log('Tab Keeper: On target tab');
+      targetTabId = newTabId;
+      stopTimer();
+    } else {
+      console.log('Tab Keeper: Away from target tab - starting timer');
+      if (!timerStartTime) {
+        // Only start timer if not already running
+        await startTimer();
+      }
+    }
+  } catch (error) {
+    console.error('Tab Keeper: Error handling tab switch:', error);
+  }
 }
 
+// Switch back to target tab
 async function switchBackToTarget() {
   const config = await chrome.storage.local.get(['targetUrl', 'username', 'password']);
   
   if (!config.targetUrl) {
     console.log('Tab Keeper: No target URL configured');
+    stopTimer();
     return;
   }
 
-  console.log('Tab Keeper: Timer expired - switching back to target tab');
+  console.log('Tab Keeper: ⏰ Timer expired - switching back to target');
   isSwitchingBack = true;
+  stopTimer();
 
-  // Find existing tab with target URL
-  const tabs = await chrome.tabs.query({});
-  const existingTab = tabs.find(tab => tab.url && tab.url.startsWith(config.targetUrl));
+  try {
+    // Find existing tab with target URL
+    const tabs = await chrome.tabs.query({});
+    const existingTab = tabs.find(tab => tab.url && tab.url.startsWith(config.targetUrl));
 
-  if (existingTab) {
-    // Switch to existing tab
-    await chrome.tabs.update(existingTab.id, { active: true });
-    await chrome.windows.update(existingTab.windowId, { focused: true });
-    console.log('Tab Keeper: Switched to existing target tab:', existingTab.id);
-    
-    // Reset login attempt flag so it can try again
-    try {
-      await chrome.tabs.sendMessage(existingTab.id, { action: 'resetLoginAttempt' });
-    } catch (e) {
-      console.log('Tab Keeper: Could not reset login flag, will retry on next load');
+    if (existingTab) {
+      console.log('Tab Keeper: Found existing tab:', existingTab.id);
+      
+      // Focus the window first
+      await chrome.windows.update(existingTab.windowId, { focused: true });
+      
+      // Then activate the tab
+      await chrome.tabs.update(existingTab.id, { active: true });
+      
+      targetTabId = existingTab.id;
+      
+      // Wait a moment then check for login
+      setTimeout(async () => {
+        try {
+          await chrome.tabs.sendMessage(existingTab.id, { action: 'checkLogin' });
+        } catch (e) {
+          console.log('Tab Keeper: Could not send message, will retry');
+        }
+      }, 1000);
+      
+    } else {
+      console.log('Tab Keeper: Creating new tab');
+      const newTab = await chrome.tabs.create({ url: config.targetUrl });
+      targetTabId = newTab.id;
     }
-  } else {
-    // Create new tab
-    const newTab = await chrome.tabs.create({ url: config.targetUrl });
-    console.log('Tab Keeper: Created new target tab:', newTab.id);
+    
+  } catch (error) {
+    console.error('Tab Keeper: Error switching back:', error);
+    isSwitchingBack = false;
   }
 }
 
-// Listen for login status checks from content script
+// Listen for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'loginRequired') {
-    console.log('Tab Keeper: Login required, performing auto-login');
+    console.log('Tab Keeper: Login required - performing auto-login');
     performAutoLogin(sender.tab);
     sendResponse({ status: 'ok' });
   }
-  if (request.action === 'getCredentials') {
-    chrome.storage.local.get(['username', 'password'], (result) => {
+  
+  if (request.action === 'checkLogin') {
+    // Content script is checking if login is needed
+    sendResponse({ status: 'checked' });
+  }
+  
+  if (request.action === 'resetLoginAttempt') {
+    sendResponse({ status: 'reset' });
+  }
+  
+  if (request.action === 'getStatus') {
+    // Popup requesting status
+    chrome.storage.local.get(['timerActive', 'timerStarted', 'timerDuration', 'targetUrl', 'enabled']).then((result) => {
       sendResponse(result);
     });
     return true; // Keep channel open for async response
   }
 });
 
+// Auto-login function
 async function performAutoLogin(tab) {
-  const config = await chrome.storage.local.get(['username', 'password', 'targetUrl']);
+  if (!tab || !tab.id) {
+    console.log('Tab Keeper: No valid tab for auto-login');
+    return;
+  }
+  
+  const config = await chrome.storage.local.get(['username', 'password']);
   
   if (!config.username || !config.password) {
-    console.log('Tab Keeper: No credentials configured for auto-login');
+    console.log('Tab Keeper: No credentials configured');
     return;
   }
 
-  console.log('Tab Keeper: Performing auto-login for:', config.username);
+  console.log('Tab Keeper: Auto-login for:', config.username);
 
-  // Execute login script in the tab
   try {
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: autoLoginFunction,
       args: [{ username: config.username, password: config.password }]
     });
-    console.log('Tab Keeper: Auto-login script executed');
+    console.log('Tab Keeper: Auto-login executed');
   } catch (error) {
     console.error('Tab Keeper: Auto-login failed:', error);
   }
 }
 
-// Function to be injected into the page
+// Injected function for auto-login
 function autoLoginFunction(creds) {
-  console.log('Auto-login: Attempting to fill form');
+  console.log('Auto-login: Starting');
   
-  // Find username/email field
   const usernameSelectors = [
     'input[type="email"]',
     'input[type="text"]',
     'input[name*="user"]',
     'input[name*="email"]',
-    '#username',
-    '#user',
-    '#email',
-    '[name="username"]',
-    '[name="email"]'
+    '#username', '#user', '#email',
+    '[name="username"]', '[name="email"]'
   ];
   
-  // Find password field
   const passwordSelectors = [
     'input[type="password"]',
     'input[name*="pass"]',
-    '#password',
-    '[name="password"]'
+    '#password', '[name="password"]'
   ];
   
-  // Find submit button
   const submitSelectors = [
     'button[type="submit"]',
     'input[type="submit"]',
-    '.login-button',
-    '#login-btn',
-    'button.submit',
-    '[type="submit"]'
+    '.login-button', '#login-btn',
+    'button.submit', '[type="submit"]'
   ];
   
   let usernameField = null;
   let passwordField = null;
   let submitButton = null;
   
-  // Try each selector
   for (const selector of usernameSelectors) {
     usernameField = document.querySelector(selector);
     if (usernameField) break;
@@ -196,53 +266,45 @@ function autoLoginFunction(creds) {
   }
   
   if (usernameField && passwordField) {
-    console.log('Auto-login: Found fields, filling credentials');
+    console.log('Auto-login: Found fields');
     
-    // Fill the fields
     usernameField.value = creds.username;
     passwordField.value = creds.password;
     
-    // Trigger input events (some sites need this)
-    usernameField.dispatchEvent(new Event('input', { bubbles: true }));
-    usernameField.dispatchEvent(new Event('change', { bubbles: true }));
-    passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-    passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+    // Trigger events
+    ['input', 'change'].forEach(eventType => {
+      usernameField.dispatchEvent(new Event(eventType, { bubbles: true }));
+      passwordField.dispatchEvent(new Event(eventType, { bubbles: true }));
+    });
     
-    // Submit the form
     if (submitButton) {
-      console.log('Auto-login: Clicking submit button');
+      console.log('Auto-login: Clicking submit');
       submitButton.click();
     } else {
-      // Try submitting the form directly
       const form = usernameField.closest('form');
       if (form) {
-        console.log('Auto-login: Submitting form directly');
+        console.log('Auto-login: Submitting form');
         form.submit();
       }
     }
   } else {
-    console.log('Auto-login: Could not find login fields');
-    console.log('Username field:', !!usernameField);
-    console.log('Password field:', !!passwordField);
+    console.log('Auto-login: Fields not found');
   }
 }
 
-// Alarm for periodic checks (optional backup)
-chrome.alarms.create('checkTab', { periodInMinutes: 1 });
+// Periodic check to ensure timer is still running
+chrome.alarms.create('timerCheck', { periodInMinutes: 1 });
 
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === 'checkTab') {
-    // Verify we're still on target tab if timer is running
-    if (switchBackTimer) {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]) {
-          chrome.storage.local.get(['targetUrl'], (config) => {
-            if (config.targetUrl && tabs[0].url && !tabs[0].url.startsWith(config.targetUrl)) {
-              console.log('Tab Keeper: Periodic check - still away from target tab');
-            }
-          });
-        }
-      });
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === 'timerCheck' && timerStartTime) {
+    // Verify timer is still active
+    const config = await chrome.storage.local.get(['targetUrl']);
+    const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    if (currentTab && config.targetUrl && !currentTab.url?.startsWith(config.targetUrl)) {
+      console.log('Tab Keeper: Timer check - still away from target');
+      // Restart timer to ensure it's still counting
+      await startTimer();
     }
   }
 });

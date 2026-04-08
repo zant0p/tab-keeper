@@ -1,61 +1,46 @@
 // Tab Keeper - Content Script
 // Detects if user is logged out and requests auto-login
 
-let loginCheckInterval = null;
+let loginCheckTimeout = null;
 let loginAttempted = false;
 
-// Check for login status periodically
+// Check for login status
 function startLoginMonitoring() {
-  console.log('Tab Keeper: Starting login monitoring');
-  // Check immediately after a short delay (let page load)
-  setTimeout(checkLoginStatus, 1000);
+  console.log('Tab Keeper Content: Starting login monitoring');
   
-  // Then check every 30 seconds
-  loginCheckInterval = setInterval(checkLoginStatus, 30000);
+  // Check after page loads
+  loginCheckTimeout = setTimeout(checkLoginStatus, 1500);
 }
 
 function checkLoginStatus() {
-  // Detect common logout indicators
-  const hasLoginForm = document.querySelector('input[type="password"]') !== null;
+  // Look for password field (strongest indicator)
+  const hasPasswordField = document.querySelector('input[type="password"]') !== null;
   
-  // Check for login-related text in the page
+  // Look for login form
+  const hasLoginForm = document.querySelector('form[action*="login"], form[action*="signin"], .login-form, #login-form') !== null;
+  
+  // Check page text for login keywords
   const bodyText = document.body.innerText.toLowerCase();
   const titleText = document.title.toLowerCase();
   
-  const loginKeywords = [
-    'sign in', 'signin', 'log in', 'login',
-    'username', 'password', 'email',
-    'welcome back', 'account access'
-  ];
-  
-  const hasKeywords = loginKeywords.some(keyword => 
-    bodyText.includes(keyword) || titleText.includes(keyword)
-  );
-  
-  // Check for common login form selectors
-  const loginSelectors = [
-    'form[action*="login"]',
-    'form[action*="signin"]',
-    '.login-form',
-    '#login-form',
-    '[data-testid="login"]',
-    '.auth-form',
-    'form[name="login"]'
-  ];
-  
-  const hasLoginFormSelector = loginSelectors.some(selector => 
-    document.querySelector(selector) !== null
-  );
+  const loginKeywords = ['sign in', 'log in', 'username', 'password', 'email address'];
+  const hasKeywords = loginKeywords.some(word => bodyText.includes(word) || titleText.includes(word));
 
-  // If we detect a login page and haven't attempted login yet
-  if ((hasLoginForm || hasKeywords || hasLoginFormSelector) && !loginAttempted) {
-    console.log('Tab Keeper: Login page detected, requesting auto-login');
+  if ((hasPasswordField || hasLoginForm || hasKeywords) && !loginAttempted) {
+    console.log('Tab Keeper Content: Login detected, requesting auto-login');
     loginAttempted = true;
-    chrome.runtime.sendMessage({ action: 'loginRequired' });
+    
+    chrome.runtime.sendMessage({ action: 'loginRequired' }, (response) => {
+      if (response) {
+        console.log('Tab Keeper Content: Auto-login initiated');
+      }
+    });
+  } else {
+    console.log('Tab Keeper Content: Not a login page or already attempted');
   }
 }
 
-// Listen for messages from background script
+// Listen for messages from background
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'checkLogin') {
     checkLoginStatus();
@@ -64,20 +49,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   if (request.action === 'resetLoginAttempt') {
     loginAttempted = false;
+    console.log('Tab Keeper Content: Login attempt reset');
     sendResponse({ status: 'reset' });
   }
-});
+  
+  return true; // Keep channel open
+}
 
-// Start monitoring when page loads
+// Start when page is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', startLoginMonitoring);
 } else {
   startLoginMonitoring();
 }
 
-// Clean up on page unload
+// Cleanup
 window.addEventListener('beforeunload', () => {
-  if (loginCheckInterval) {
-    clearInterval(loginCheckInterval);
+  if (loginCheckTimeout) {
+    clearTimeout(loginCheckTimeout);
   }
 });
