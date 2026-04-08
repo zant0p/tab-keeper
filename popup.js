@@ -96,8 +96,10 @@ document.getElementById('openOptions').addEventListener('click', () => {
 });
 
 document.getElementById('switchNow').addEventListener('click', () => {
+  console.log('[Popup] Switch button clicked');
   // Ask background script to switch (it handles finding/creating the tab)
   chrome.runtime.sendMessage({ action: 'manualSwitch' }, (response) => {
+    console.log('[Popup] Switch response:', response);
     if (response && response.status === 'switching') {
       window.close();
     }
