@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Tab Keeper",
+  "version": "1.0",
+  "description": "Keeps a designated tab active, auto-switches back after inactivity, and auto-logins when needed",
+  "permissions": [
+    "tabs",
+    "storage",
+    "alarms",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Tab Keeper Settings"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
