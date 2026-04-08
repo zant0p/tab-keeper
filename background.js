@@ -284,20 +284,26 @@ function autoLoginFunction(creds) {
     'input[name*="user"]',
     'input[name*="email"]',
     '#username', '#user', '#email',
-    '[name="username"]', '[name="email"]'
+    '[name="username"]', '[name="email"]',
+    'ion-input[type="email"]',
+    'ion-input[type="text"]'
   ];
   
   const passwordSelectors = [
     'input[type="password"]',
     'input[name*="pass"]',
-    '#password', '[name="password"]'
+    '#password', '[name="password"]',
+    'ion-input[type="password"]'
   ];
   
   const submitSelectors = [
     'button[type="submit"]',
     'input[type="submit"]',
     '.login-button', '#login-btn',
-    'button.submit', '[type="submit"]'
+    'button.submit', '[type="submit"]',
+    'ion-button[name="button-login"]',
+    'ion-button[type="submit"]',
+    '[name="button-login"]'
   ];
   
   let usernameField = null;
@@ -322,25 +328,71 @@ function autoLoginFunction(creds) {
   if (usernameField && passwordField) {
     console.log('Auto-login: Found fields');
     
-    usernameField.value = creds.username;
-    passwordField.value = creds.password;
-    
-    // Trigger events
-    ['input', 'change'].forEach(eventType => {
-      usernameField.dispatchEvent(new Event(eventType, { bubbles: true }));
-      passwordField.dispatchEvent(new Event(eventType, { bubbles: true }));
-    });
-    
-    if (submitButton) {
-      console.log('Auto-login: Clicking submit');
-      submitButton.click();
-    } else {
-      const form = usernameField.closest('form');
-      if (form) {
-        console.log('Auto-login: Submitting form');
-        form.submit();
-      }
+    // Handle regular input fields
+    if (usernameField.tagName === 'INPUT') {
+      usernameField.value = creds.username;
+      usernameField.dispatchEvent(new Event('input', { bubbles: true }));
+      usernameField.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (usernameField.tagName === 'ION-INPUT') {
+      // Ionic input - set value and trigger event
+      usernameField.value = creds.username;
+      usernameField.dispatchEvent(new CustomEvent('ionInput', { bubbles: true, detail: { value: creds.username } }));
+      usernameField.dispatchEvent(new Event('input', { bubbles: true }));
     }
+    
+    if (passwordField.tagName === 'INPUT') {
+      passwordField.value = creds.password;
+      passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+      passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (passwordField.tagName === 'ION-INPUT') {
+      passwordField.value = creds.password;
+      passwordField.dispatchEvent(new CustomEvent('ionInput', { bubbles: true, detail: { value: creds.password } }));
+      passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    
+    console.log('Auto-login: Fields filled, waiting for button to enable...');
+    
+    // Wait for button to become enabled (Ionic buttons disable until form is valid)
+    setTimeout(() => {
+      // Try regular button first
+      if (submitButton) {
+        if (submitButton.tagName === 'ION-BUTTON') {
+          // Ionic button - need to click the native button inside shadow DOM
+          console.log('Auto-login: Ionic button detected');
+          
+          // Try to enable it first by removing disabled attribute
+          submitButton.removeAttribute('disabled');
+          submitButton.removeAttribute('aria-disabled');
+          
+          // Click the native button inside shadow DOM
+          const nativeButton = submitButton.shadowRoot?.querySelector('button');
+          if (nativeButton) {
+            console.log('Auto-login: Clicking native button in shadow DOM');
+            nativeButton.click();
+          } else {
+            // Fallback: click the ion-button itself
+            console.log('Auto-login: Clicking ion-button directly');
+            submitButton.click();
+          }
+        } else {
+          // Regular button
+          console.log('Auto-login: Clicking submit button');
+          submitButton.click();
+        }
+      } else {
+        // No button found, try to submit form directly
+        const form = usernameField.closest('form');
+        if (form) {
+          console.log('Auto-login: Submitting form directly');
+          form.submit();
+        } else {
+          console.log('Auto-login: No form found, trying Enter key');
+          // Try pressing Enter on the password field
+          passwordField.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        }
+      }
+    }, 500); // Wait 500ms for button to enable
+    
   } else {
     console.log('Auto-login: Fields not found');
     console.log('Username:', !!usernameField, 'Password:', !!passwordField);
