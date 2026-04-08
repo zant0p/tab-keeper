@@ -303,7 +303,10 @@ function autoLoginFunction(creds) {
     'button.submit', '[type="submit"]',
     'ion-button[name="button-login"]',
     'ion-button[type="submit"]',
-    '[name="button-login"]'
+    '[name="button-login"]',
+    // Specific path from DevTools
+    'app-root ion-app ion-router-outlet app-login ion-content ion-card > ion-button',
+    'body > app-root > ion-app > ion-router-outlet > app-login > ion-content > ion-card > div:nth-child(4) > ion-button'
   ];
   
   let usernameField = null;
