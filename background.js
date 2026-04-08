@@ -56,12 +56,12 @@ async function handleTabSwitch(newTabId) {
   
   if (tab.url && tab.url.startsWith(config.targetUrl)) {
     // User is on the target tab - no timer needed
-    console.log('On target tab, timer cleared');
+    console.log('Tab Keeper: On target tab, timer cleared');
     return;
   }
 
   // User switched away - start timer
-  console.log(`User switched away from target tab. Starting ${TIMER_MINUTES} min timer...`);
+  console.log(`Tab Keeper: User switched away from target tab. Starting ${TIMER_MINUTES} min timer...`);
   
   switchBackTimer = setTimeout(async () => {
     await switchBackToTarget();
@@ -72,11 +72,11 @@ async function switchBackToTarget() {
   const config = await chrome.storage.local.get(['targetUrl', 'username', 'password']);
   
   if (!config.targetUrl) {
-    console.log('No target URL configured');
+    console.log('Tab Keeper: No target URL configured');
     return;
   }
 
-  console.log('Timer expired - switching back to target tab');
+  console.log('Tab Keeper: Timer expired - switching back to target tab');
   isSwitchingBack = true;
 
   // Find existing tab with target URL
@@ -87,26 +87,27 @@ async function switchBackToTarget() {
     // Switch to existing tab
     await chrome.tabs.update(existingTab.id, { active: true });
     await chrome.windows.update(existingTab.windowId, { focused: true });
-    console.log('Switched to existing target tab:', existingTab.id);
+    console.log('Tab Keeper: Switched to existing target tab:', existingTab.id);
+    
+    // Reset login attempt flag so it can try again
+    try {
+      await chrome.tabs.sendMessage(existingTab.id, { action: 'resetLoginAttempt' });
+    } catch (e) {
+      console.log('Tab Keeper: Could not reset login flag, will retry on next load');
+    }
   } else {
     // Create new tab
-    await chrome.tabs.create({ url: config.targetUrl });
-    console.log('Created new target tab');
-  }
-
-  // Check if login is needed (will be handled by content script)
-  // Send message to check login status
-  if (existingTab) {
-    chrome.tabs.sendMessage(existingTab.id, { action: 'checkLogin' }).catch(() => {
-      // Tab might not be ready yet, will retry on load
-    });
+    const newTab = await chrome.tabs.create({ url: config.targetUrl });
+    console.log('Tab Keeper: Created new target tab:', newTab.id);
   }
 }
 
 // Listen for login status checks from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'loginRequired') {
+    console.log('Tab Keeper: Login required, performing auto-login');
     performAutoLogin(sender.tab);
+    sendResponse({ status: 'ok' });
   }
   if (request.action === 'getCredentials') {
     chrome.storage.local.get(['username', 'password'], (result) => {
@@ -120,42 +121,110 @@ async function performAutoLogin(tab) {
   const config = await chrome.storage.local.get(['username', 'password', 'targetUrl']);
   
   if (!config.username || !config.password) {
-    console.log('No credentials configured for auto-login');
+    console.log('Tab Keeper: No credentials configured for auto-login');
     return;
   }
 
-  console.log('Performing auto-login for:', config.username);
+  console.log('Tab Keeper: Performing auto-login for:', config.username);
 
-  // Inject login script
-  chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: (creds) => {
-      // Find login form and fill it
-      const usernameField = document.querySelector('input[type="email"], input[type="text"], input[name*="user"], input[name*="email"], #username, #user');
-      const passwordField = document.querySelector('input[type="password"], input[name*="pass"], #password');
-      const submitButton = document.querySelector('button[type="submit"], input[type="submit"], .login-button, #login-btn');
+  // Execute login script in the tab
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: autoLoginFunction,
+      args: [{ username: config.username, password: config.password }]
+    });
+    console.log('Tab Keeper: Auto-login script executed');
+  } catch (error) {
+    console.error('Tab Keeper: Auto-login failed:', error);
+  }
+}
 
-      if (usernameField && passwordField) {
-        usernameField.value = creds.username;
-        passwordField.value = creds.password;
-        
-        // Trigger input events (some sites need this)
-        usernameField.dispatchEvent(new Event('input', { bubbles: true }));
-        passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-
-        if (submitButton) {
-          submitButton.click();
-        } else {
-          // Try submitting the form directly
-          const form = usernameField.closest('form');
-          if (form) {
-            form.submit();
-          }
-        }
+// Function to be injected into the page
+function autoLoginFunction(creds) {
+  console.log('Auto-login: Attempting to fill form');
+  
+  // Find username/email field
+  const usernameSelectors = [
+    'input[type="email"]',
+    'input[type="text"]',
+    'input[name*="user"]',
+    'input[name*="email"]',
+    '#username',
+    '#user',
+    '#email',
+    '[name="username"]',
+    '[name="email"]'
+  ];
+  
+  // Find password field
+  const passwordSelectors = [
+    'input[type="password"]',
+    'input[name*="pass"]',
+    '#password',
+    '[name="password"]'
+  ];
+  
+  // Find submit button
+  const submitSelectors = [
+    'button[type="submit"]',
+    'input[type="submit"]',
+    '.login-button',
+    '#login-btn',
+    'button.submit',
+    '[type="submit"]'
+  ];
+  
+  let usernameField = null;
+  let passwordField = null;
+  let submitButton = null;
+  
+  // Try each selector
+  for (const selector of usernameSelectors) {
+    usernameField = document.querySelector(selector);
+    if (usernameField) break;
+  }
+  
+  for (const selector of passwordSelectors) {
+    passwordField = document.querySelector(selector);
+    if (passwordField) break;
+  }
+  
+  for (const selector of submitSelectors) {
+    submitButton = document.querySelector(selector);
+    if (submitButton) break;
+  }
+  
+  if (usernameField && passwordField) {
+    console.log('Auto-login: Found fields, filling credentials');
+    
+    // Fill the fields
+    usernameField.value = creds.username;
+    passwordField.value = creds.password;
+    
+    // Trigger input events (some sites need this)
+    usernameField.dispatchEvent(new Event('input', { bubbles: true }));
+    usernameField.dispatchEvent(new Event('change', { bubbles: true }));
+    passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+    passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+    
+    // Submit the form
+    if (submitButton) {
+      console.log('Auto-login: Clicking submit button');
+      submitButton.click();
+    } else {
+      // Try submitting the form directly
+      const form = usernameField.closest('form');
+      if (form) {
+        console.log('Auto-login: Submitting form directly');
+        form.submit();
       }
-    },
-    args: [{ username: config.username, password: config.password }]
-  });
+    }
+  } else {
+    console.log('Auto-login: Could not find login fields');
+    console.log('Username field:', !!usernameField);
+    console.log('Password field:', !!passwordField);
+  }
 }
 
 // Alarm for periodic checks (optional backup)
@@ -169,7 +238,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
         if (tabs[0]) {
           chrome.storage.local.get(['targetUrl'], (config) => {
             if (config.targetUrl && tabs[0].url && !tabs[0].url.startsWith(config.targetUrl)) {
-              console.log('Periodic check: still away from target tab');
+              console.log('Tab Keeper: Periodic check - still away from target tab');
             }
           });
         }
