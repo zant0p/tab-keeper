@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>Tab Keeper Settings</title>
   <style>
     body {
@@ -124,12 +125,12 @@
   </style>
 </head>
 <body>
-  <h1>🔒 Tab Keeper Settings</h1>
+  <h1>Tab Keeper Settings</h1>
   
   <div id="message" class="message"></div>
 
   <div class="section">
-    <h2>🎯 Target Configuration</h2>
+    <h2>Target Configuration</h2>
     
     <label for="enabled">
       <input type="checkbox" id="enabled">
@@ -146,10 +147,10 @@
   </div>
 
   <div class="section">
-    <h2>🔐 Auto-Login Credentials</h2>
+    <h2>Auto-Login Credentials</h2>
     
     <div class="credentials-warning">
-      ⚠️ <strong>Security Note:</strong> Credentials are stored locally in Chrome's storage. 
+      <strong>Security Note:</strong> Credentials are stored locally in Chrome's storage. 
       They are not synced or transmitted anywhere. For maximum security, use a dedicated 
       browser profile for this extension.
     </div>
@@ -161,19 +162,19 @@
     <input type="password" id="password" placeholder="Your password">
     
     <div class="hint" style="margin-top: 12px;">
-      💡 These credentials will be auto-filled when the login page is detected
+      These credentials will be auto-filled when the login page is detected
     </div>
   </div>
 
   <div class="section">
-    <h2>🧪 Test & Actions</h2>
+    <h2>Test and Actions</h2>
     
-    <button id="testLogin" class="btn-test">🧪 Test Auto-Login</button>
-    <button id="clearCredentials" class="btn-clear">🗑️ Clear Credentials</button>
+    <button id="testLogin" class="btn-test">Test Auto-Login</button>
+    <button id="clearCredentials" class="btn-clear">Clear Credentials</button>
   </div>
 
   <div class="section">
-    <button id="save" class="btn-save">💾 Save Settings</button>
+    <button id="save" class="btn-save">Save Settings</button>
   </div>
 
   <script src="options.js"></script>
