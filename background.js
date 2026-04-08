@@ -1,13 +1,12 @@
 // Tab Keeper - Background Service Worker
-// Monitors active tab, enforces 10-min return timer, handles auto-login
+// Monitors activity on non-target tabs, switches back after 10 min of INACTIVITY
 
 const TIMER_MINUTES = 10;
 let switchBackTimeout = null;
-let timerStartTime = null;
-let timerDuration = null;
+let lastActivityTime = null;
 let isSwitchingBack = false;
 let targetTabId = null;
-let timerRunning = false;
+let activityListenerInstalled = false;
 
 // Initialize on install
 chrome.runtime.onInstalled.addListener(() => {
@@ -19,62 +18,100 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-// Get current timer duration in ms
+// Get timer duration in ms
 async function getTimerMs() {
   const config = await chrome.storage.local.get(['timerMinutes']);
   return (config.timerMinutes || TIMER_MINUTES) * 60 * 1000;
 }
 
-// Start the timer (only if not already running)
-async function startTimer() {
-  if (timerRunning) {
-    console.log('Tab Keeper: Timer already running, not restarting');
-    return;
-  }
-  
-  // Clear any existing timer
+// Start or restart the inactivity timer
+async function startInactivityTimer() {
+  // Clear existing timer
   if (switchBackTimeout) {
     clearTimeout(switchBackTimeout);
   }
   
-  timerDuration = await getTimerMs();
-  timerStartTime = Date.now();
-  timerRunning = true;
+  const timerMs = await getTimerMs();
+  lastActivityTime = Date.now();
   
-  console.log(`Tab Keeper: Timer started - ${timerDuration/60000} minutes`);
+  console.log(`Tab Keeper: Inactivity timer started - ${timerMs/60000} minutes`);
   
+  // Set timeout
   switchBackTimeout = setTimeout(async () => {
-    await switchBackToTarget();
-  }, timerDuration);
+    const timeSinceActivity = Date.now() - lastActivityTime;
+    const timeSinceStart = Date.now() - lastActivityTime;
+    
+    console.log(`Tab Keeper: Timeout fired. Time since activity: ${timeSinceActivity/1000}s`);
+    
+    // Only switch back if truly inactive for full duration
+    if (timeSinceActivity >= timerMs) {
+      await switchBackToTarget();
+    } else {
+      console.log('Tab Keeper: Recent activity detected, not switching back');
+    }
+  }, timerMs);
   
-  // Store timer state for popup to display
+  // Store state for popup
   chrome.storage.local.set({
     timerActive: true,
-    timerStarted: timerStartTime,
-    timerDuration: timerDuration,
-    timerRunning: true
+    lastActivity: lastActivityTime,
+    timerDuration: timerMs
   });
 }
 
-// Stop the timer (when user is on target tab)
+// Stop the timer
 function stopTimer() {
   if (switchBackTimeout) {
     clearTimeout(switchBackTimeout);
     switchBackTimeout = null;
   }
-  timerStartTime = null;
-  timerDuration = null;
-  timerRunning = false;
+  lastActivityTime = null;
   targetTabId = null;
   
   chrome.storage.local.set({
     timerActive: false,
-    timerStarted: null,
-    timerDuration: null,
-    timerRunning: false
+    lastActivity: null,
+    timerDuration: null
   });
   
   console.log('Tab Keeper: Timer stopped');
+}
+
+// Record user activity
+function recordActivity() {
+  if (lastActivityTime) {
+    lastActivityTime = Date.now();
+    chrome.storage.local.set({ lastActivity: lastActivityTime });
+  }
+}
+
+// Install activity listeners on tabs
+async function installActivityListener(tabId) {
+  if (activityListenerInstalled) return;
+  
+  try {
+    // Inject content script that reports activity
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      func: () => {
+        // Track activity events
+        ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(event => {
+          window.addEventListener(event, () => {
+            // Debounce - don't spam messages
+            if (!window.lastActivityTime || Date.now() - window.lastActivityTime > 5000) {
+              window.lastActivityTime = Date.now();
+              chrome.runtime.sendMessage({ action: 'userActivity' });
+            }
+          }, { passive: true });
+        });
+      }
+    });
+    
+    activityListenerInstalled = true;
+    console.log('Tab Keeper: Activity listener installed');
+  } catch (error) {
+    console.log('Tab Keeper: Could not install activity listener:', error.message);
+  }
 }
 
 // Monitor tab changes
@@ -116,13 +153,12 @@ async function handleTabSwitch(newTabId) {
       targetTabId = newTabId;
       stopTimer();
     } else {
-      console.log('Tab Keeper: Away from target tab');
-      if (!timerRunning) {
-        console.log('Tab Keeper: Timer not running - starting it');
-        await startTimer();
-      } else {
-        console.log('Tab Keeper: Timer already running - continuing countdown');
-      }
+      console.log('Tab Keeper: Away from target tab - starting inactivity timer');
+      lastActivityTime = Date.now();
+      await startInactivityTimer();
+      
+      // Install activity listener on this tab
+      await installActivityListener(newTabId);
     }
   } catch (error) {
     console.error('Tab Keeper: Error handling tab switch:', error);
@@ -139,7 +175,7 @@ async function switchBackToTarget() {
     return;
   }
 
-  console.log('Tab Keeper: ⏰ TIMER EXPIRED - switching back to target');
+  console.log('Tab Keeper: ⏰ INACTIVITY TIMEOUT - switching back to target');
   isSwitchingBack = true;
   stopTimer();
 
@@ -180,7 +216,7 @@ async function switchBackToTarget() {
   }
 }
 
-// Listen for messages from content script
+// Listen for messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'loginRequired') {
     console.log('Tab Keeper: Login required - performing auto-login');
@@ -196,18 +232,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ status: 'reset' });
   }
   
-  if (request.action === 'getStatus') {
-    // Popup requesting status
-    chrome.storage.local.get(['timerActive', 'timerStarted', 'timerDuration', 'targetUrl', 'enabled', 'timerRunning']).then((result) => {
-      sendResponse(result);
-    });
-    return true;
+  if (request.action === 'userActivity') {
+    // User was active on a non-target tab
+    recordActivity();
+    sendResponse({ status: 'recorded' });
   }
   
-  if (request.action === 'forceStartTimer') {
-    // Force start timer (for testing)
-    startTimer();
-    sendResponse({ status: 'started' });
+  if (request.action === 'getStatus') {
+    chrome.storage.local.get(['timerActive', 'lastActivity', 'timerDuration', 'targetUrl', 'enabled']).then((result) => {
+      sendResponse(result);
+    });
     return true;
   }
 });
@@ -312,18 +346,3 @@ function autoLoginFunction(creds) {
     console.log('Username:', !!usernameField, 'Password:', !!passwordField);
   }
 }
-
-// Periodic check to ensure timer is still running
-chrome.alarms.create('timerCheck', { periodInMinutes: 1 });
-
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'timerCheck' && timerRunning) {
-    console.log('Tab Keeper: Timer check - still running');
-    const config = await chrome.storage.local.get(['targetUrl']);
-    const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    if (currentTab && config.targetUrl && !currentTab.url?.startsWith(config.targetUrl)) {
-      console.log('Tab Keeper: Still away from target, timer continuing');
-    }
-  }
-});
