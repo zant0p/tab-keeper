@@ -141,6 +141,46 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
   }
 });
 
+// Extract base URL (domain + first path segment) for matching
+function getBaseUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    // Match domain + first path segment (e.g., example.com/app)
+    const firstPath = urlObj.pathname.split('/')[1] || '';
+    return urlObj.origin + (firstPath ? '/' + firstPath : '');
+  } catch (e) {
+    return url;
+  }
+}
+
+// Check if a tab URL matches the target (handles URL changes after login)
+function isTargetUrl(tabUrl, targetUrl) {
+  if (!tabUrl || !targetUrl) return false;
+  
+  // Exact match
+  if (tabUrl === targetUrl) return true;
+  
+  // Starts with target
+  if (tabUrl.startsWith(targetUrl)) return true;
+  
+  // Match by base URL (domain + first path)
+  const tabBase = getBaseUrl(tabUrl);
+  const targetBase = getBaseUrl(targetUrl);
+  
+  if (tabBase === targetBase) return true;
+  
+  // Match by domain only (most flexible)
+  try {
+    const tabDomain = new URL(tabUrl).hostname;
+    const targetDomain = new URL(targetUrl).hostname;
+    if (tabDomain === targetDomain) return true;
+  } catch (e) {
+    // URL parsing failed
+  }
+  
+  return false;
+}
+
 // Handle tab switch logic
 async function handleTabSwitch(newTabId) {
   if (isSwitchingBack) {
@@ -164,7 +204,7 @@ async function handleTabSwitch(newTabId) {
   try {
     const tab = await chrome.tabs.get(newTabId);
     const tabUrl = tab.url || '';
-    const isTargetTab = tabUrl.startsWith(config.targetUrl);
+    const isTargetTab = isTargetUrl(tabUrl, config.targetUrl);
     
     console.log('[Tab Keeper] Current tab URL: ' + tabUrl);
     console.log('[Tab Keeper] Target URL: ' + config.targetUrl);
@@ -202,7 +242,7 @@ async function switchBackToTarget() {
   stopTimer();
 
   try {
-    // Find existing tab with target URL
+    // Find existing tab with target URL (handles URL changes after login)
     const allTabs = await chrome.tabs.query({});
     
     console.log('[Tab Keeper] Total tabs found: ' + allTabs.length);
@@ -220,32 +260,25 @@ async function switchBackToTarget() {
       if (existingTab) matchReason = 'URL starts with target';
     }
     
-    // Strategy 3: Match without trailing slash
+    // Strategy 3: Match by base URL (domain + first path) - BEST FOR LOGIN FLOWS
     if (!existingTab) {
-      const targetNoSlash = config.targetUrl.replace(/\/$/, '');
-      existingTab = allTabs.find(tab => {
-        const tabUrlNoSlash = tab.url ? tab.url.replace(/\/$/, '') : '';
-        return tabUrlNoSlash === targetNoSlash;
-      });
-      if (existingTab) matchReason = 'URL match (no trailing slash)';
+      existingTab = allTabs.find(tab => tab.url && isTargetUrl(tab.url, config.targetUrl));
+      if (existingTab) matchReason = 'base URL match (domain)';
     }
     
-    // Strategy 4: Base URL match (domain + path)
+    // Strategy 4: Match by domain only
     if (!existingTab) {
       try {
-        const targetUrlObj = new URL(config.targetUrl);
-        const targetBase = targetUrlObj.origin + targetUrlObj.pathname;
+        const targetDomain = new URL(config.targetUrl).hostname;
         existingTab = allTabs.find(tab => {
           if (!tab.url) return false;
           try {
-            const tabUrlObj = new URL(tab.url);
-            const tabBase = tabUrlObj.origin + tabUrlObj.pathname;
-            return tabBase === targetBase;
+            return new URL(tab.url).hostname === targetDomain;
           } catch (e) {
             return false;
           }
         });
-        if (existingTab) matchReason = 'base URL match';
+        if (existingTab) matchReason = 'domain match only';
       } catch (e) {
         console.log('[Tab Keeper] URL parsing failed:', e);
       }
