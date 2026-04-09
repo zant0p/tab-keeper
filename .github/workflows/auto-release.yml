@@ -40,7 +40,7 @@ jobs:
       
       - name: Validate manifest version
         run: |
-          MANIFEST_VERSION=$(grep '"version":' chrome-extensions/tab-keeper/manifest.json | sed 's/.*"version": *"\([^"]*\)".*/\1/')
+          MANIFEST_VERSION=$(grep '"version":' manifest.json | sed 's/.*"version": *"\([^"]*\)".*/\1/')
           if [ "$MANIFEST_VERSION" != "${{ steps.version.outputs.VERSION }}" ]; then
             echo "❌ ERROR: Version mismatch!"
             echo "   Tag version: ${{ steps.version.outputs.VERSION }}"
@@ -58,10 +58,8 @@ jobs:
       
       - name: Create extension package
         run: |
-          cd chrome-extensions/tab-keeper
-          
           # Create ZIP with only necessary files
-          zip -r ../tab-keeper-${{ steps.version.outputs.VERSION }}.zip \
+          zip -r tab-keeper-${{ steps.version.outputs.VERSION }}.zip \
             manifest.json \
             background.js \
             content.js \
@@ -73,11 +71,12 @@ jobs:
             -x "*.md" \
             -x "*.py" \
             -x "*.sh" \
+            -x ".github/*" \
             -x ".git/*" \
             -x "__pycache__/*"
           
           echo "✅ Created tab-keeper-${{ steps.version.outputs.VERSION }}.zip"
-          ls -lh ../tab-keeper-${{ steps.version.outputs.VERSION }}.zip
+          ls -lh tab-keeper-${{ steps.version.outputs.VERSION }}.zip
       
       - name: Upload ZIP to release
         uses: softprops/action-gh-release@v1
@@ -129,34 +128,18 @@ jobs:
       
       - name: Update updates.xml in repository
         run: |
-          # Download current updates.xml or create if doesn't exist
-          if [ -f "chrome-extensions/tab-keeper/updates.xml" ]; then
-            cp chrome-extensions/tab-keeper/updates.xml updates.xml.backup
-          else
-            cat > chrome-extensions/tab-keeper/updates.xml << 'XML_TEMPLATE'
-          <?xml version='1.0' encoding='UTF-8'?>
-          <gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
-            <app appid='lndhaffkdjabbhnoebbmifhmbcgfmbnp'>
-              <updatecheck codebase='https://github.com/${{ github.repository }}/releases/download/vVERSION/tab-keeper.crx' version='VERSION' />
-            </app>
-          </gupdate>
-          XML_TEMPLATE
-          fi
-          
           # Update version in updates.xml
-          sed -i "s/version='[0-9.]*'/version='${{ steps.version.outputs.VERSION }}'/g" \
-            chrome-extensions/tab-keeper/updates.xml
-          sed -i "s/download\/v[0-9.]*/download\/v${{ steps.version.outputs.VERSION }}/g" \
-            chrome-extensions/tab-keeper/updates.xml
+          sed -i "s/version='[0-9.]*'/version='${{ steps.version.outputs.VERSION }}'/g" updates.xml
+          sed -i "s/download\/v[0-9.]*/download\/v${{ steps.version.outputs.VERSION }}/g" updates.xml
           
           echo "✅ Updated updates.xml to version ${{ steps.version.outputs.VERSION }}"
-          cat chrome-extensions/tab-keeper/updates.xml
+          cat updates.xml
       
       - name: Commit updated updates.xml
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: Update updates.xml to v${{ steps.version.outputs.VERSION }} [skip ci]"
-          file_pattern: chrome-extensions/tab-keeper/updates.xml
+          file_pattern: updates.xml
           skip_checkout: true
       
       - name: Release complete
