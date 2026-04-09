@@ -17,7 +17,7 @@ Keeps a designated tab active, automatically switches back after inactivity, and
 1. Open Chrome and go to `chrome://extensions/`
 2. Enable **Developer mode** (toggle in top-right)
 3. Click **Load unpacked**
-4. Select the folder: `/home/zantop/.openclaw/workspace/chrome-extensions/tab-keeper`
+4. Select the `tab-keeper` folder (wherever you cloned/downloaded it)
 5. Extension icon should appear in toolbar
 
 ### Option 2: Package as CRX (For Distribution)
@@ -25,7 +25,7 @@ Keeps a designated tab active, automatically switches back after inactivity, and
 1. Go to `chrome://extensions/`
 2. Enable **Developer mode**
 3. Click **Pack extension**
-4. Set extension root: `/home/zantop/.openclaw/workspace/chrome-extensions/tab-keeper`
+4. Set extension root to the `tab-keeper` folder
 5. Click **Pack Extension**
 6. Install the generated `.crx` file
 

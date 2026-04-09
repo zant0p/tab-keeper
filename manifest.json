@@ -13,7 +13,7 @@
   "host_permissions": [
     "<all_urls>"
   ],
-  "update_url": "https://raw.githubusercontent.com/zantop/tab-keeper/main/updates.xml",
+  "update_url": "https://raw.githubusercontent.com/YOUR_USERNAME/tab-keeper/main/updates.xml",
   "background": {
     "service_worker": "background.js"
   },

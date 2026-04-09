@@ -38,7 +38,7 @@ git push origin v1.0.1
 
 ### Step 4: GitHub Actions Takes Over! 🤖
 
-1. Go to: https://github.com/zantop/tab-keeper/actions
+1. Go to: https://github.com/YOUR_USERNAME/tab-keeper/actions
 2. You'll see the **"Auto-Release Chrome Extension"** workflow running
 3. Wait ~1-2 minutes for it to complete
 4. The workflow will:
@@ -51,7 +51,7 @@ git push origin v1.0.1
 
 Once the workflow completes:
 
-1. Go to: https://github.com/zantop/tab-keeper/releases
+1. Go to: https://github.com/YOUR_USERNAME/tab-keeper/releases
 2. Click the latest release (v1.0.1)
 3. Download `tab-keeper-1.0.1.zip` from **Assets**
 4. Unzip locally
@@ -88,7 +88,7 @@ Local Machine                          GitHub
 
 If you want to trigger a release without creating a tag:
 
-1. Go to: https://github.com/zantop/tab-keeper/actions
+1. Go to: https://github.com/YOUR_USERNAME/tab-keeper/actions
 2. Click **"Auto-Release Chrome Extension"** workflow
 3. Click **"Run workflow"** button
 4. Enter version number (e.g., `1.0.1`)
@@ -226,7 +226,7 @@ Choose one. If using Chrome Web Store, remove `update_url` from manifest.
 ### Check Workflow Status
 
 ```
-https://github.com/zantop/tab-keeper/actions
+https://github.com/YOUR_USERNAME/tab-keeper/actions
 ```
 
 - ✅ Green checkmark = Success
@@ -236,7 +236,7 @@ https://github.com/zantop/tab-keeper/actions
 ### View Release
 
 ```
-https://github.com/zantop/tab-keeper/releases
+https://github.com/YOUR_USERNAME/tab-keeper/releases
 ```
 
 - See all versions
@@ -246,7 +246,7 @@ https://github.com/zantop/tab-keeper/releases
 ### Check updates.xml
 
 ```
-https://raw.githubusercontent.com/zantop/tab-keeper/main/updates.xml
+https://raw.githubusercontent.com/YOUR_USERNAME/tab-keeper/main/updates.xml
 ```
 
 - Verify version is updated
@@ -301,22 +301,22 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 
 # View workflow
-https://github.com/zantop/tab-keeper/actions
+https://github.com/YOUR_USERNAME/tab-keeper/actions
 
 # Download latest release
-https://github.com/zantop/tab-keeper/releases/latest
+https://github.com/YOUR_USERNAME/tab-keeper/releases/latest
 
 # Check updates.xml
-curl https://raw.githubusercontent.com/zantop/tab-keeper/main/updates.xml
+curl https://raw.githubusercontent.com/YOUR_USERNAME/tab-keeper/main/updates.xml
 ```
 
 ### Important URLs
 
 | Purpose | URL |
 |---------|-----|
-| GitHub Actions | https://github.com/zantop/tab-keeper/actions |
-| Releases | https://github.com/zantop/tab-keeper/releases |
-| Update Manifest | https://raw.githubusercontent.com/zantop/tab-keeper/main/updates.xml |
+| GitHub Actions | https://github.com/YOUR_USERNAME/tab-keeper/actions |
+| Releases | https://github.com/YOUR_USERNAME/tab-keeper/releases |
+| Update Manifest | https://raw.githubusercontent.com/YOUR_USERNAME/tab-keeper/main/updates.xml |
 | Extension ID | `lndhaffkdjabbhnoebbmifhmbcgfmbnp` |
 
 ---

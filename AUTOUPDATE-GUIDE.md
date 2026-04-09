@@ -28,13 +28,13 @@ Tab Keeper uses Chrome's **built-in auto-update mechanism** to deliver updates a
 
 ### Step 2: Update `updates.xml`
 
-Replace `YOUR_EXTENSION_ID_HERE` with your actual extension ID:
+Replace `YOUR_EXTENSION_ID_HERE` and `YOUR_USERNAME` with your actual values:
 
 ```xml
 <?xml version='1.0' encoding='UTF-8'?>
 <gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
-  <app appid='YOUR_ACTUAL_EXTENSION_ID_HERE'>
-    <updatecheck codebase='https://github.com/zantop/tab-keeper/releases/download/v1.0.0/tab-keeper.crx' version='1.0.0' />
+  <app appid='YOUR_EXTENSION_ID_HERE'>
+    <updatecheck codebase='https://github.com/YOUR_USERNAME/tab-keeper/releases/download/v1.0.0/tab-keeper.crx' version='1.0.0' />
   </app>
 </gupdate>
 ```
@@ -44,7 +44,7 @@ Replace `YOUR_EXTENSION_ID_HERE` with your actual extension ID:
 1. Go to `chrome://extensions/`
 2. Enable **Developer mode**
 3. Click **"Pack extension"**
-4. **Extension root:** `/home/zantop/.openclaw/workspace/chrome-extensions/tab-keeper`
+4. **Extension root:** Select the `tab-keeper` folder
 5. Click **"Pack Extension"**
 6. Save the generated `.crx` and `.pem` files
 
@@ -52,7 +52,7 @@ Replace `YOUR_EXTENSION_ID_HERE` with your actual extension ID:
 
 ### Step 4: Create First GitHub Release
 
-1. Go to: https://github.com/zantop/tab-keeper/releases/new
+1. Go to: https://github.com/YOUR_USERNAME/tab-keeper/releases/new
 2. **Tag version:** `v1.0.0`
 3. **Release title:** Tab Keeper v1.0.0
 4. **Description:** Release notes
@@ -62,7 +62,7 @@ Replace `YOUR_EXTENSION_ID_HERE` with your actual extension ID:
 ### Step 5: Commit & Push Updates
 
 ```bash
-cd /home/zantop/.openclaw/workspace/chrome-extensions/tab-keeper
+cd path/to/your/tab-keeper
 
 git add manifest.json updates.xml
 git commit -m "Initial release v1.0.0 with auto-update support"
@@ -84,9 +84,9 @@ git push
 {
   "ExtensionSettings": {
     "YOUR_EXTENSION_ID": {
-      "update_url": "https://raw.githubusercontent.com/zantop/tab-keeper/main/updates.xml",
+      "update_url": "https://raw.githubusercontent.com/YOUR_USERNAME/tab-keeper/main/updates.xml",
       "installation_mode": "force_installed",
-      "online_install_source": "https://github.com/zantop/tab-keeper/releases"
+      "online_install_source": "https://github.com/YOUR_USERNAME/tab-keeper/releases"
     }
   }
 }
@@ -100,7 +100,7 @@ git push
 ### Automated Release Script
 
 ```bash
-cd /home/zantop/.openclaw/workspace/chrome-extensions/tab-keeper
+cd path/to/your/tab-keeper
 bash scripts/release.sh
 ```
 
@@ -121,7 +121,7 @@ The script will:
 
 **2. Update `updates.xml`:**
 ```xml
-<updatecheck codebase='https://github.com/zantop/tab-keeper/releases/download/v1.0.1/tab-keeper.crx' version='1.0.1' />
+<updatecheck codebase='https://github.com/YOUR_USERNAME/tab-keeper/releases/download/v1.0.1/tab-keeper.crx' version='1.0.1' />
 ```
 
 **3. Create CRX:**
@@ -224,7 +224,7 @@ For managed devices (schools, businesses):
 ### Troubleshooting
 
 **Update not installing:**
-- Check `updates.xml` is accessible: `curl https://raw.githubusercontent.com/zantop/tab-keeper/main/updates.xml`
+- Check `updates.xml` is accessible: `curl https://raw.githubusercontent.com/YOUR_USERNAME/tab-keeper/main/updates.xml`
 - Verify extension ID matches
 - Ensure `.crx` URL is correct in `updates.xml`
 - Check Chrome version (M33+ on Windows requires Web Store OR enterprise policy)
@@ -250,7 +250,7 @@ For managed devices (schools, businesses):
 grep '"version":' manifest.json
 
 # Test updates.xml
-curl https://raw.githubusercontent.com/zantop/tab-keeper/main/updates.xml
+curl https://raw.githubusercontent.com/YOUR_USERNAME/tab-keeper/main/updates.xml
 
 # Force Chrome update check
 # Go to chrome://extensions/ → Enable Dev mode → Click "Update"

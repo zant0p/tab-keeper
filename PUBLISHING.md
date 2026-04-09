@@ -96,7 +96,7 @@
 
 **Option A: Upload ZIP (Recommended)**
 ```bash
-cd /home/zantop/.openclaw/workspace/chrome-extensions/
+cd path/to/your/chrome-extensions/
 zip -r tab-keeper-cws.zip tab-keeper/ -x "*.git*" -x "*.md" -x "generate-icons.py"
 ```
 
@@ -121,7 +121,7 @@ zip -r tab-keeper-cws.zip tab-keeper/ -x "*.git*" -x "*.md" -x "generate-icons.p
 
 ### Generate Icons (Already Done ✅)
 ```bash
-cd /home/zantop/.openclaw/workspace/chrome-extensions/tab-keeper
+cd path/to/your/chrome-extensions/tab-keeper
 python3 generate-icons.py
 ```
 
@@ -181,7 +181,7 @@ Since Tab Keeper stores credentials:
 
 ```bash
 # Create CWS-ready ZIP (excludes dev files)
-cd /home/zantop/.openclaw/workspace/chrome-extensions/
+cd path/to/your/chrome-extensions/
 zip -r tab-keeper-cws.zip tab-keeper/ \
   -x "*.git*" \
   -x "tab-keeper/*.md" \
