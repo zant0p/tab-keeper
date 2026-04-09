@@ -15,6 +15,9 @@ permissions:
   contents: write  # Required to create releases
   actions: read    # Required to read workflow artifacts
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'  # Use Node.js 24 instead of deprecated Node.js 20
+
 jobs:
   build-release:
     name: Build & Release
