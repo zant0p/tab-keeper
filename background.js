@@ -147,6 +147,32 @@ function recordActivity() {
     lastActivityTime = Date.now();
     chrome.storage.local.set({ lastActivity: lastActivityTime });
     console.log('[Tab Keeper] Activity recorded - timer reset');
+    
+    // CRITICAL: Reset the timer when activity is detected
+    // Clear existing timeout and start fresh
+    if (switchBackTimeout) {
+      clearTimeout(switchBackTimeout);
+      switchBackTimeout = null;
+      console.log('[Tab Keeper] Clearing old timeout due to activity');
+      
+      // Start new timer from this activity point (don't reset lastActivityTime again)
+      getTimerMs().then(timerMs => {
+        switchBackTimeout = setTimeout(async () => {
+          const timeSinceActivity = Date.now() - lastActivityTime;
+          console.log('[Tab Keeper] Reset timeout callback fired');
+          console.log('[Tab Keeper] Time since activity: ' + Math.round(timeSinceActivity/1000) + 's');
+          
+          if (timeSinceActivity >= (timerMs - 2000)) {
+            console.log('[Tab Keeper] No recent activity - SWITCHING BACK');
+            await switchBackToTarget();
+          } else {
+            console.log('[Tab Keeper] Recent activity detected - NOT switching');
+          }
+        }, timerMs);
+        
+        console.log('[Tab Keeper] New timer started for ' + (timerMs/60000) + ' minutes');
+      });
+    }
   }
 }
 
