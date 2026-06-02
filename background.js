@@ -18,6 +18,59 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// Restore timer on service worker startup (critical for persistence!)
+chrome.runtime.onStartup.addListener(async () => {
+  console.log('[Tab Keeper] Service worker started - checking for timer to restore');
+  await restoreTimer();
+});
+
+// Also restore on first message after reload
+let timerRestored = false;
+async function ensureTimerRestored() {
+  if (!timerRestored) {
+    await restoreTimer();
+    timerRestored = true;
+  }
+}
+
+// Restore timer from storage if it was active when service worker died
+async function restoreTimer() {
+  const state = await chrome.storage.local.get(['timerActive', 'timerStartTime', 'timerDuration', 'targetUrl']);
+  
+  if (!state.timerActive || !state.timerStartTime || !state.timerDuration) {
+    console.log('[Tab Keeper] No active timer to restore');
+    return;
+  }
+  
+  const elapsed = Date.now() - state.timerStartTime;
+  const remaining = state.timerDuration - elapsed;
+  
+  console.log('[Tab Keeper] Found active timer to restore');
+  console.log('[Tab Keeper] Timer started at: ' + new Date(state.timerStartTime).toLocaleTimeString());
+  console.log('[Tab Keeper] Elapsed: ' + Math.round(elapsed/1000) + 's');
+  console.log('[Tab Keeper] Remaining: ' + Math.round(remaining/1000) + 's');
+  
+  if (remaining <= 0) {
+    console.log('[Tab Keeper] Timer already expired - switching back immediately');
+    await switchBackToTarget();
+  } else if (remaining < 5000) {
+    console.log('[Tab Keeper] Timer about to expire (<5s) - switching back soon');
+    switchBackTimeout = setTimeout(async () => {
+      await switchBackToTarget();
+    }, remaining);
+  } else {
+    console.log('[Tab Keeper] Restoring timer with ' + Math.round(remaining/1000) + 's remaining');
+    lastActivityTime = Date.now(); // Reset activity time to now
+    switchBackTimeout = setTimeout(async () => {
+      const timeSinceActivity = Date.now() - lastActivityTime;
+      if (timeSinceActivity >= (remaining - 2000)) {
+        console.log('[Tab Keeper] Restored timer expired - SWITCHING BACK');
+        await switchBackToTarget();
+      }
+    }, remaining);
+  }
+}
+
 // Get timer duration in ms
 async function getTimerMs() {
   const config = await chrome.storage.local.get(['timerMinutes']);
@@ -126,6 +179,7 @@ async function installActivityListener(tabId) {
 // Monitor tab changes
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   console.log('[Tab Keeper] Tab activated: ' + activeInfo.tabId);
+  await ensureTimerRestored(); // Restore timer if service worker restarted
   await handleTabSwitch(activeInfo.tabId);
 });
 
@@ -135,6 +189,7 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
     chrome.tabs.query({ active: true, windowId: windowId }, async (tabs) => {
       if (tabs[0]) {
         console.log('[Tab Keeper] Window focus changed, active tab: ' + tabs[0].id);
+        await ensureTimerRestored(); // Restore timer if service worker restarted
         await handleTabSwitch(tabs[0].id);
       }
     });
@@ -333,6 +388,11 @@ async function switchBackToTarget() {
 // Listen for messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[Tab Keeper] Message received: ' + (request ? request.action : 'unknown'));
+  
+  // Ensure timer is restored before processing any message
+  ensureTimerRestored().then(() => {
+    console.log('[Tab Keeper] Timer restore check complete');
+  });
   
   if (request.action === 'loginRequired') {
     console.log('[Tab Keeper] Login required - performing auto-login');
