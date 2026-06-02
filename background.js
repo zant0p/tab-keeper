@@ -318,6 +318,13 @@ async function switchBackToTarget() {
         targetTabId = existingTab.id;
         
         console.log('[Tab Keeper] ✓✓✓ SUCCESS - switched to tab ' + existingTab.id + ' ✓✓✓');
+        
+        // Reset login attempt flag so content script can try auto-login again
+        setTimeout(() => {
+          chrome.tabs.sendMessage(existingTab.id, { action: 'resetLoginAttempt' }).catch(e => {
+            console.log('[Tab Keeper] Could not reset login attempt:', e.message);
+          });
+        }, 500);
       } catch (switchError) {
         console.error('[Tab Keeper] Failed to focus/activate tab:', switchError);
         console.error('[Tab Keeper] Error details:', switchError.message);
