@@ -1,12 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Tab Keeper",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Keeps a designated tab active, auto-switches back after inactivity, and auto-logins when needed",
   "permissions": [
     "tabs",
     "storage",
-    "alarms",
     "activeTab",
     "scripting"
   ],
