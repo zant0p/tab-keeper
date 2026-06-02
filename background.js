@@ -110,12 +110,17 @@ async function recordActivity(tabId) {
   if (tabId && state.targetUrl) {
     try {
       const tab = await chrome.tabs.get(tabId);
+      console.log('[Tab Keeper] Activity from tab:', tabId, 'URL:', tab.url ? tab.url.substring(0, 50) : 'no URL');
+      console.log('[Tab Keeper] Target URL:', state.targetUrl.substring(0, 50));
+      
       if (tab.url && isTargetUrl(tab.url, state.targetUrl)) {
         console.log('[Tab Keeper] Activity ignored - on target tab');
         return; // Don't reset timer if activity is on target tab
       }
+      console.log('[Tab Keeper] Activity on non-target tab - will reset timer');
     } catch (e) {
       // Tab might not exist, continue with activity recording
+      console.log('[Tab Keeper] Could not get tab info:', e.message);
     }
   }
   
@@ -402,6 +407,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   if (request.action === 'userActivity') {
     // Pass the sender's tab ID so we can check if activity is on target tab
+    console.log('[Tab Keeper] userActivity message received from tab:', sender.tab ? sender.tab.id : 'unknown');
     recordActivity(sender.tab ? sender.tab.id : null);
     sendResponse({ status: 'recorded' });
   }
