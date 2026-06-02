@@ -309,6 +309,8 @@ async function handleTabSwitch(newTabId) {
 
 // Switch back to target tab
 async function switchBackToTarget() {
+  console.log('[Tab Keeper] >>> switchBackToTarget CALLED');
+  
   const config = await chrome.storage.local.get(['targetUrl', 'username', 'password']);
   
   if (!config.targetUrl) {
@@ -324,6 +326,7 @@ async function switchBackToTarget() {
 
   try {
     // Find existing tab with target URL (handles URL changes after login)
+    console.log('[Tab Keeper] Querying all tabs...');
     const allTabs = await chrome.tabs.query({});
     
     console.log('[Tab Keeper] Total tabs found: ' + allTabs.length);
@@ -371,17 +374,24 @@ async function switchBackToTarget() {
       console.log('[Tab Keeper] Match reason: ' + matchReason);
       console.log('[Tab Keeper] Tab windowId: ' + existingTab.windowId);
       
-      // Focus the window first
-      console.log('[Tab Keeper] Focusing window ' + existingTab.windowId);
-      await chrome.windows.update(existingTab.windowId, { focused: true });
-      
-      // Activate the tab
-      console.log('[Tab Keeper] Activating tab ' + existingTab.id);
-      await chrome.tabs.update(existingTab.id, { active: true, highlighted: true });
-      
-      targetTabId = existingTab.id;
-      
-      console.log('[Tab Keeper] SUCCESS - switched to tab ' + existingTab.id);
+      try {
+        // Focus the window first
+        console.log('[Tab Keeper] Focusing window ' + existingTab.windowId);
+        await chrome.windows.update(existingTab.windowId, { focused: true });
+        console.log('[Tab Keeper] Window focused successfully');
+        
+        // Activate the tab
+        console.log('[Tab Keeper] Activating tab ' + existingTab.id);
+        await chrome.tabs.update(existingTab.id, { active: true, highlighted: true });
+        console.log('[Tab Keeper] Tab activated successfully');
+        
+        targetTabId = existingTab.id;
+        
+        console.log('[Tab Keeper] ✓✓✓ SUCCESS - switched to tab ' + existingTab.id + ' ✓✓✓');
+      } catch (switchError) {
+        console.error('[Tab Keeper] Failed to focus/activate tab:', switchError);
+        console.error('[Tab Keeper] Error details:', switchError.message);
+      }
       
       // Wait then check for login
       setTimeout(async () => {
@@ -396,18 +406,26 @@ async function switchBackToTarget() {
     } else {
       console.log('[Tab Keeper] NO existing tab found - CREATING NEW TAB');
       console.log('[Tab Keeper] Creating tab with URL: ' + config.targetUrl);
-      const newTab = await chrome.tabs.create({ 
-        url: config.targetUrl, 
-        active: true 
-      });
-      targetTabId = newTab.id;
-      console.log('[Tab Keeper] Created new tab: ' + newTab.id);
+      try {
+        const newTab = await chrome.tabs.create({ 
+          url: config.targetUrl, 
+          active: true 
+        });
+        targetTabId = newTab.id;
+        console.log('[Tab Keeper] ✓✓✓ Created new tab: ' + newTab.id + ' ✓✓✓');
+      } catch (createError) {
+        console.error('[Tab Keeper] Failed to create new tab:', createError);
+        console.error('[Tab Keeper] Error details:', createError.message);
+      }
     }
     
   } catch (error) {
     console.error('[Tab Keeper] ERROR switching back:', error);
     console.error('[Tab Keeper] Error details:', error.message);
+    console.error('[Tab Keeper] Stack:', error.stack);
+  } finally {
     isSwitchingBack = false;
+    console.log('[Tab Keeper] <<< switchBackToTarget COMPLETE');
   }
 }
 
