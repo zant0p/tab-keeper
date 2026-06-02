@@ -1,25 +1,66 @@
 // Tab Keeper - Content Script
 // Detects if user is logged out and requests auto-login
 // Checks multiple times to handle slow-loading pages
+// ONLY triggers auto-login on the configured target site
 
 let loginCheckTimeout = null;
 let loginAttempted = false;
 let checkAttempts = 0;
 const MAX_CHECK_ATTEMPTS = 5; // Check up to 5 times over 7 seconds
+let targetUrl = null; // Store target URL to verify we're on the right site
+
+// Extract base URL (domain + first path segment) for matching
+function getBaseUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    const firstPath = urlObj.pathname.split('/')[1] || '';
+    return urlObj.origin + (firstPath ? '/' + firstPath : '');
+  } catch (e) {
+    return url;
+  }
+}
+
+// Check if a URL matches the target
+function isTargetUrl(currentUrl, targetUrl) {
+  if (!currentUrl || !targetUrl) return false;
+  
+  if (currentUrl === targetUrl) return true;
+  if (currentUrl.startsWith(targetUrl)) return true;
+  
+  const currentBase = getBaseUrl(currentUrl);
+  const targetBase = getBaseUrl(targetUrl);
+  
+  if (currentBase === targetBase) return true;
+  
+  try {
+    const currentDomain = new URL(currentUrl).hostname;
+    const targetDomain = new URL(targetUrl).hostname;
+    if (currentDomain === targetDomain) return true;
+  } catch (e) {}
+  
+  return false;
+}
 
 // Check for login status
 function startLoginMonitoring() {
   console.log('Tab Keeper Content: Starting login monitoring');
-  checkLoginStatusDelayed();
+  
+  chrome.runtime.sendMessage({ action: 'getTargetUrl' }, (response) => {
+    if (response && response.targetUrl) {
+      targetUrl = response.targetUrl;
+      console.log('Tab Keeper Content: Target URL:', targetUrl);
+      checkLoginStatusDelayed();
+    } else {
+      console.log('Tab Keeper Content: No target URL configured, skipping login monitoring');
+    }
+  });
 }
 
 function checkLoginStatusDelayed() {
-  // Clear any existing timeout
   if (loginCheckTimeout) {
     clearTimeout(loginCheckTimeout);
   }
   
-  // Delay increases with each attempt: 1s, 1.5s, 2s, 2s, 2s
   const delay = checkAttempts === 0 ? 1000 : (checkAttempts < 2 ? 1500 : 2000);
   
   loginCheckTimeout = setTimeout(() => {
@@ -31,26 +72,30 @@ function checkLoginStatus() {
   checkAttempts++;
   console.log(`Tab Keeper Content: Login check attempt ${checkAttempts}/${MAX_CHECK_ATTEMPTS}`);
   
-  // Look for password field (strongest indicator)
+  // Verify we're on the target site before checking for login page
+  if (targetUrl) {
+    const currentUrl = window.location.href;
+    const isTargetSite = isTargetUrl(currentUrl, targetUrl);
+    
+    if (!isTargetSite) {
+      console.log('Tab Keeper Content: Not on target site, skipping auto-login');
+      return;
+    }
+  }
+  
   const hasPasswordField = document.querySelector('input[type="password"]') !== null;
-  
-  // Look for login form
   const hasLoginForm = document.querySelector('form[action*="login"], form[action*="signin"], .login-form, #login-form') !== null;
-  
-  // Look for common login input names/ids
   const hasUsernameField = document.querySelector('input[name*="user"], input[name*="email"], #username, #email, [name="username"]') !== null;
   
-  // Check page text for login keywords
   const bodyText = document.body.innerText.toLowerCase();
   const titleText = document.title.toLowerCase();
-  
   const loginKeywords = ['sign in', 'log in', 'username', 'password', 'email address'];
   const hasKeywords = loginKeywords.some(word => bodyText.includes(word) || titleText.includes(word));
 
   const isLoginPage = hasPasswordField || hasLoginForm || (hasUsernameField && hasKeywords);
 
   if (isLoginPage && !loginAttempted) {
-    console.log('Tab Keeper Content: Login page detected, requesting auto-login');
+    console.log('Tab Keeper Content: Login page detected on target site, requesting auto-login');
     loginAttempted = true;
     
     chrome.runtime.sendMessage({ action: 'loginRequired' }, (response) => {
@@ -58,26 +103,23 @@ function checkLoginStatus() {
         console.log('Tab Keeper Content: Auto-login initiated');
       } else {
         console.log('Tab Keeper Content: No response from background, will retry');
-        loginAttempted = false; // Allow retry
+        loginAttempted = false;
       }
     });
   } else if (!isLoginPage) {
     console.log('Tab Keeper Content: Not a login page');
-    // Not a login page, no need to keep checking
     return;
   } else if (loginAttempted) {
     console.log('Tab Keeper Content: Already attempted login');
     return;
   } else {
     console.log('Tab Keeper Content: Login fields not found yet, will check again');
-    // Keep trying if we haven't hit max attempts
     if (checkAttempts < MAX_CHECK_ATTEMPTS) {
       checkLoginStatusDelayed();
     }
   }
 }
 
-// Listen for messages from background
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'checkLogin') {
     checkLoginStatus();
@@ -90,17 +132,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ status: 'reset' });
   }
   
-  return true; // Keep channel open
+  return true;
 });
 
-// Start when page is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', startLoginMonitoring);
 } else {
   startLoginMonitoring();
 }
 
-// Cleanup
 window.addEventListener('beforeunload', () => {
   if (loginCheckTimeout) {
     clearTimeout(loginCheckTimeout);

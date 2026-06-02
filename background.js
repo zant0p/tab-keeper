@@ -401,6 +401,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ status: 'checked' });
   }
   
+  if (request.action === 'getTargetUrl') {
+    chrome.storage.local.get(['targetUrl']).then((result) => {
+      sendResponse({ targetUrl: result.targetUrl || null });
+    });
+    return true;
+  }
+  
   if (request.action === 'resetLoginAttempt') {
     sendResponse({ status: 'reset' });
   }
@@ -427,10 +434,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
   
+  if (request.action === 'popupOpened') {
+    // Track when popup is opened to detect interference patterns
+    popupOpenCount++;
+    console.log('[Tab Keeper] Popup opened (count:', popupOpenCount + ')');
+    sendResponse({ status: 'tracked' });
+  }
+  
   if (request.action === 'debug') {
     // Debug command - return current state
     chrome.storage.local.get(null).then((allData) => {
-      sendResponse({ state: allData, timerRunning: true }); // Always true with alarms
+      sendResponse({ state: allData, timerRunning: true, popupOpenCount: popupOpenCount });
     });
     return true;
   }

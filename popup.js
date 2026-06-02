@@ -110,5 +110,8 @@ document.getElementById('switchNow').addEventListener('click', () => {
 // Update UI on load
 updateUI();
 
+// Notify background script that popup was opened (for interference tracking)
+chrome.runtime.sendMessage({ action: 'popupOpened' });
+
 // Clean up when popup closes
 window.addEventListener('unload', stopCountdown);
