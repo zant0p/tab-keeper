@@ -98,14 +98,30 @@ async function stopTimer() {
 }
 
 // Record user activity and reset timer
-async function recordActivity() {
-  const state = await chrome.storage.local.get(['timerActive', 'lastActivity']);
+async function recordActivity(tabId) {
+  const state = await chrome.storage.local.get(['timerActive', 'targetUrl']);
   
-  if (state.timerActive) {
-    console.log('[Tab Keeper] Activity recorded - resetting timer');
-    // Clear and restart the alarm
-    await startInactivityTimer();
+  if (!state.timerActive) {
+    console.log('[Tab Keeper] Activity ignored - timer not active');
+    return;
   }
+  
+  // Check if this activity is on the target tab
+  if (tabId && state.targetUrl) {
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      if (tab.url && isTargetUrl(tab.url, state.targetUrl)) {
+        console.log('[Tab Keeper] Activity ignored - on target tab');
+        return; // Don't reset timer if activity is on target tab
+      }
+    } catch (e) {
+      // Tab might not exist, continue with activity recording
+    }
+  }
+  
+  console.log('[Tab Keeper] Activity recorded - resetting timer');
+  // Clear and restart the alarm
+  await startInactivityTimer();
 }
 
 // Install activity listeners on tabs
@@ -385,7 +401,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === 'userActivity') {
-    recordActivity();
+    // Pass the sender's tab ID so we can check if activity is on target tab
+    recordActivity(sender.tab ? sender.tab.id : null);
     sendResponse({ status: 'recorded' });
   }
   
