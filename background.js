@@ -17,14 +17,34 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// On startup, verify settings are loaded (they persist in chrome.storage.local automatically)
+chrome.runtime.onStartup.addListener(async () => {
+  console.log('[Tab Keeper] Extension started - settings persist in chrome.storage.local');
+  const config = await chrome.storage.local.get(['targetUrl', 'username', 'password', 'enabled']);
+  console.log('[Tab Keeper] Loaded config:', {
+    targetUrl: config.targetUrl ? config.targetUrl.substring(0, 30) + '...' : 'none',
+    hasUsername: !!config.username,
+    hasPassword: !!config.password,
+    enabled: config.enabled
+  });
+});
+
 // Restore timer on service worker startup (not needed with alarms - they persist automatically!)
 // chrome.alarms API handles persistence across service worker restarts
 
 // Listen for alarm events - THIS IS THE KEY FOR RELIABLE SWITCHING!
 chrome.alarms.onAlarm.addListener(async (alarm) => {
+  console.log('[Tab Keeper] >>> ALARM EVENT RECEIVED: ' + alarm.name);
   if (alarm.name === 'switchBack') {
     console.log('[Tab Keeper] >>> ALARM FIRED - switching back to target <<<');
-    await switchBackToTarget();
+    try {
+      await switchBackToTarget();
+      console.log('[Tab Keeper] >>> switchBackToTarget completed after alarm');
+    } catch (error) {
+      console.error('[Tab Keeper] Error during alarm-triggered switch:', error);
+    }
+  } else {
+    console.log('[Tab Keeper] Unknown alarm: ' + alarm.name);
   }
 });
 
