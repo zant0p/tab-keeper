@@ -1,9 +1,8 @@
 // Tab Keeper - Background Service Worker
 // Monitors activity on non-target tabs, switches back after 10 min of INACTIVITY
+// Uses chrome.alarms API for reliable timer that survives service worker restarts
 
 const TIMER_MINUTES = 10;
-let switchBackTimeout = null;
-let lastActivityTime = null;
 let isSwitchingBack = false;
 let targetTabId = null;
 let activityListenerInstalled = false;
@@ -18,58 +17,16 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-// Restore timer on service worker startup (critical for persistence!)
-chrome.runtime.onStartup.addListener(async () => {
-  console.log('[Tab Keeper] Service worker started - checking for timer to restore');
-  await restoreTimer();
-});
+// Restore timer on service worker startup (not needed with alarms - they persist automatically!)
+// chrome.alarms API handles persistence across service worker restarts
 
-// Also restore on first message after reload
-let timerRestored = false;
-async function ensureTimerRestored() {
-  if (!timerRestored) {
-    await restoreTimer();
-    timerRestored = true;
-  }
-}
-
-// Restore timer from storage if it was active when service worker died
-async function restoreTimer() {
-  const state = await chrome.storage.local.get(['timerActive', 'timerStartTime', 'timerDuration', 'targetUrl']);
-  
-  if (!state.timerActive || !state.timerStartTime || !state.timerDuration) {
-    console.log('[Tab Keeper] No active timer to restore');
-    return;
-  }
-  
-  const elapsed = Date.now() - state.timerStartTime;
-  const remaining = state.timerDuration - elapsed;
-  
-  console.log('[Tab Keeper] Found active timer to restore');
-  console.log('[Tab Keeper] Timer started at: ' + new Date(state.timerStartTime).toLocaleTimeString());
-  console.log('[Tab Keeper] Elapsed: ' + Math.round(elapsed/1000) + 's');
-  console.log('[Tab Keeper] Remaining: ' + Math.round(remaining/1000) + 's');
-  
-  if (remaining <= 0) {
-    console.log('[Tab Keeper] Timer already expired - switching back immediately');
+// Listen for alarm events - THIS IS THE KEY FOR RELIABLE SWITCHING!
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === 'switchBack') {
+    console.log('[Tab Keeper] >>> ALARM FIRED - switching back to target <<<');
     await switchBackToTarget();
-  } else if (remaining < 5000) {
-    console.log('[Tab Keeper] Timer about to expire (<5s) - switching back soon');
-    switchBackTimeout = setTimeout(async () => {
-      await switchBackToTarget();
-    }, remaining);
-  } else {
-    console.log('[Tab Keeper] Restoring timer with ' + Math.round(remaining/1000) + 's remaining');
-    lastActivityTime = Date.now(); // Reset activity time to now
-    switchBackTimeout = setTimeout(async () => {
-      const timeSinceActivity = Date.now() - lastActivityTime;
-      if (timeSinceActivity >= (remaining - 2000)) {
-        console.log('[Tab Keeper] Restored timer expired - SWITCHING BACK');
-        await switchBackToTarget();
-      }
-    }, remaining);
   }
-}
+});
 
 // Get timer duration in ms
 async function getTimerMs() {
@@ -77,58 +34,38 @@ async function getTimerMs() {
   return (config.timerMinutes || TIMER_MINUTES) * 60 * 1000;
 }
 
-// Start or restart the inactivity timer
+// Start or restart the inactivity timer using chrome.alarms
 async function startInactivityTimer() {
-  // Clear existing timer
-  if (switchBackTimeout) {
-    clearTimeout(switchBackTimeout);
-    switchBackTimeout = null;
-  }
+  const timerMinutes = await chrome.storage.local.get(['timerMinutes']);
+  const minutes = timerMinutes.timerMinutes || TIMER_MINUTES;
   
-  const timerMs = await getTimerMs();
-  lastActivityTime = Date.now();
+  console.log('[Tab Keeper] Timer STARTED - ' + minutes + ' minutes');
+  console.log('[Tab Keeper] Will fire at: ' + new Date(Date.now() + (minutes * 60000)).toLocaleTimeString());
   
-  console.log('[Tab Keeper] Timer STARTED - ' + (timerMs/60000) + ' minutes');
-  console.log('[Tab Keeper] Will fire at: ' + new Date(Date.now() + timerMs).toLocaleTimeString());
+  // Clear any existing alarm
+  await chrome.alarms.clear('switchBack');
   
-  // Set timeout
-  switchBackTimeout = setTimeout(async () => {
-    const timeSinceActivity = Date.now() - lastActivityTime;
-    const timeSinceStart = Date.now() - lastActivityTime;
-    
-    console.log('[Tab Keeper] Timeout callback fired');
-    console.log('[Tab Keeper] Time since activity: ' + Math.round(timeSinceActivity/1000) + 's');
-    console.log('[Tab Keeper] Timer duration: ' + Math.round(timerMs/1000) + 's');
-    
-    // Only switch back if truly inactive for full duration
-    if (timeSinceActivity >= (timerMs - 2000)) { // 2 second tolerance
-      console.log('[Tab Keeper] No recent activity - SWITCHING BACK');
-      await switchBackToTarget();
-    } else {
-      console.log('[Tab Keeper] Recent activity detected - NOT switching');
-    }
-  }, timerMs);
+  // Create new alarm
+  chrome.alarms.create('switchBack', {
+    delayInMinutes: minutes
+  });
   
   // Store state for popup
+  const now = Date.now();
   chrome.storage.local.set({
     timerActive: true,
-    lastActivity: lastActivityTime,
-    timerDuration: timerMs,
-    timerStartTime: lastActivityTime
+    lastActivity: now,
+    timerDuration: minutes * 60000,
+    timerStartTime: now
   });
   
   console.log('[Tab Keeper] Timer state saved to storage');
 }
 
 // Stop the timer
-function stopTimer() {
-  if (switchBackTimeout) {
-    clearTimeout(switchBackTimeout);
-    switchBackTimeout = null;
-    console.log('[Tab Keeper] Timer cleared');
-  }
-  lastActivityTime = null;
-  targetTabId = null;
+async function stopTimer() {
+  await chrome.alarms.clear('switchBack');
+  console.log('[Tab Keeper] Timer cleared');
   
   chrome.storage.local.set({
     timerActive: false,
@@ -140,39 +77,14 @@ function stopTimer() {
   console.log('[Tab Keeper] Timer STOPPED');
 }
 
-// Record user activity
-function recordActivity() {
-  if (lastActivityTime) {
-    const oldTime = lastActivityTime;
-    lastActivityTime = Date.now();
-    chrome.storage.local.set({ lastActivity: lastActivityTime });
-    console.log('[Tab Keeper] Activity recorded - timer reset');
-    
-    // CRITICAL: Reset the timer when activity is detected
-    // Clear existing timeout and start fresh
-    if (switchBackTimeout) {
-      clearTimeout(switchBackTimeout);
-      switchBackTimeout = null;
-      console.log('[Tab Keeper] Clearing old timeout due to activity');
-      
-      // Start new timer from this activity point (don't reset lastActivityTime again)
-      getTimerMs().then(timerMs => {
-        switchBackTimeout = setTimeout(async () => {
-          const timeSinceActivity = Date.now() - lastActivityTime;
-          console.log('[Tab Keeper] Reset timeout callback fired');
-          console.log('[Tab Keeper] Time since activity: ' + Math.round(timeSinceActivity/1000) + 's');
-          
-          if (timeSinceActivity >= (timerMs - 2000)) {
-            console.log('[Tab Keeper] No recent activity - SWITCHING BACK');
-            await switchBackToTarget();
-          } else {
-            console.log('[Tab Keeper] Recent activity detected - NOT switching');
-          }
-        }, timerMs);
-        
-        console.log('[Tab Keeper] New timer started for ' + (timerMs/60000) + ' minutes');
-      });
-    }
+// Record user activity and reset timer
+async function recordActivity() {
+  const state = await chrome.storage.local.get(['timerActive', 'lastActivity']);
+  
+  if (state.timerActive) {
+    console.log('[Tab Keeper] Activity recorded - resetting timer');
+    // Clear and restart the alarm
+    await startInactivityTimer();
   }
 }
 
@@ -205,7 +117,6 @@ async function installActivityListener(tabId) {
 // Monitor tab changes
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   console.log('[Tab Keeper] Tab activated: ' + activeInfo.tabId);
-  await ensureTimerRestored(); // Restore timer if service worker restarted
   await handleTabSwitch(activeInfo.tabId);
 });
 
@@ -215,7 +126,6 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
     chrome.tabs.query({ active: true, windowId: windowId }, async (tabs) => {
       if (tabs[0]) {
         console.log('[Tab Keeper] Window focus changed, active tab: ' + tabs[0].id);
-        await ensureTimerRestored(); // Restore timer if service worker restarted
         await handleTabSwitch(tabs[0].id);
       }
     });
@@ -433,11 +343,6 @@ async function switchBackToTarget() {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[Tab Keeper] Message received: ' + (request ? request.action : 'unknown'));
   
-  // Ensure timer is restored before processing any message
-  ensureTimerRestored().then(() => {
-    console.log('[Tab Keeper] Timer restore check complete');
-  });
-  
   if (request.action === 'loginRequired') {
     console.log('[Tab Keeper] Login required - performing auto-login');
     performAutoLogin(sender.tab);
@@ -475,7 +380,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'debug') {
     // Debug command - return current state
     chrome.storage.local.get(null).then((allData) => {
-      sendResponse({ state: allData, timerRunning: !!switchBackTimeout });
+      sendResponse({ state: allData, timerRunning: true }); // Always true with alarms
     });
     return true;
   }
