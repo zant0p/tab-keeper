@@ -1,5 +1,24 @@
 # Tab Keeper - Chrome Extension
 
+
+## Latest Release: v1.0.14
+
+**Released:** June 2, 2026
+
+### What's New
+- ✅ Fixed auto-login to only trigger on target website (not any login page)
+- ✅ Updated contact and support email
+- ✅ Cleaned up debug code for Chrome Web Store submission
+- ✅ Improved timer reliability with Chrome Alarms API
+
+### Download
+- **GitHub Releases:** https://github.com/zant0p/tab-keeper/releases/latest
+- **Chrome Web Store:** Pending submission
+
+---
+
+
+
 Keeps a designated tab active, automatically switches back after inactivity, and auto-logins when needed.
 
 ## Features
