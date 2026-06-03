@@ -31,7 +31,7 @@ jobs:
       
       - name: Verify manifest version matches tag
         run: |
-          MANIFEST_VERSION=$(grep '"version":' chrome-extensions/tab-keeper/manifest.json | sed 's/.*"version": *"\([^"]*\)".*/\1/')
+          MANIFEST_VERSION=$(grep '"version":' ./manifest.json | sed 's/.*"version": *"\([^"]*\)".*/\1/')
           TAG_VERSION="${{ steps.get_version.outputs.VERSION }}"
           if [ "$MANIFEST_VERSION" != "$TAG_VERSION" ]; then
             echo "❌ Version mismatch!"
@@ -44,7 +44,7 @@ jobs:
       
       - name: Create ZIP package
         run: |
-          cd chrome-extensions/tab-keeper
+          cd .
           python3 << 'PYTHON_SCRIPT'
           import zipfile
           import os
@@ -91,7 +91,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tab-keeper-${{ steps.get_version.outputs.VERSION }}
-          path: chrome-extensions/tab-keeper/tab-keeper.zip
+          path: ./tab-keeper.zip
           retention-days: 30
       
       - name: Create GitHub Release
