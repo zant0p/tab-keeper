@@ -64,12 +64,13 @@ Read our full [Privacy Policy](privacy.html) for details.
 
 ## Support
 
-For questions or issues:
+For questions, issues, or feature requests:
 
 - **GitHub Issues:** https://github.com/zant0p/tab-keeper/issues
-- **Email:** [Your contact email]
+- **Email:** zantop@protonmail.com
+- **GitHub Repository:** https://github.com/zant0p/tab-keeper
 
 ---
 
-**Last Updated:** April 9, 2026  
-**Version:** 1.0.0
+**Last Updated:** June 2, 2026  
+**Current Version:** 1.0.14
