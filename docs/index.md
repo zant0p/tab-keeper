@@ -1,5 +1,9 @@
 # Tab Keeper - Documentation
 
+**Current Version:** v1.0.14 (June 2, 2026)  
+**Contact:** zantop@protonmail.com
+
+
 ## Limited Use Statement
 
 **Tab Keeper complies with the Chrome Web Store User Data Policy, including the Limited Use requirements.**

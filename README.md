@@ -127,11 +127,43 @@ tab-keeper/
 
 ## Version History
 
-- **1.0** (2026-04-08): Initial release
-  - Tab monitoring with 10-min timer
-  - Auto-login with credential storage
-  - Configurable settings page
-  - Status popup
+### v1.0.14 (June 2, 2026) - Production Release
+- ✅ Fixed auto-login to only trigger on target website
+- ✅ Updated contact email to zantop@protonmail.com
+- ✅ Removed experimental code for Chrome Web Store compliance
+- ✅ Fixed GitHub Actions build workflow
+- ✅ Improved timer reliability with Chrome Alarms API
+
+### v1.0.5 (May 27, 2026)
+- Fixed timer persistence issues
+- Improved activity tracking
+
+### v1.0.4 (May 27, 2026)
+- Added debug logging for tab switching
+
+### v1.0.3 (May 27, 2026)
+- Fixed inconsistent auto-login behavior
+
+### v1.0.2 (May 27, 2026)
+- Added persistent timer across browser restarts
+
+### v1.0.1 (May 27, 2026)
+- Bug fixes for auto-login timing
+
+### v1.0.0 (April 8, 2026) - Initial Release
+- Tab monitoring with configurable timer
+- Auto-login with credential storage
+- Settings page and status popup
+
+## Support & Contact
+
+**Email:** zantop@protonmail.com  
+**GitHub:** https://github.com/zant0p/tab-keeper  
+**Issues:** https://github.com/zant0p/tab-keeper/issues
+
+For bugs, feature requests, or questions, please open a GitHub issue or contact via email.
+
+---
 
 ## License
 
