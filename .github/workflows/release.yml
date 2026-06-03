@@ -86,6 +86,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           name: Tab Keeper v${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
           body: |
             ## Tab Keeper v${{ steps.get_version.outputs.VERSION }}
             
