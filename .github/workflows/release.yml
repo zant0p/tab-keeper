@@ -44,32 +44,20 @@ jobs:
       
       - name: Create ZIP package
         run: |
-          cd .
-          python3 << 'PYTHON_SCRIPT'
-          import zipfile
-          import os
-          from pathlib import Path
-          
-          exclude_files = {
-            'README.md', 'PUBLISHING.md', 'privacy-policy.md', 
-            'generate-icons.py', 'package-for-cws.py', 'release.sh',
-            'AUTOUPDATE-GUIDE.md', 'updates.xml'
-          }
-          exclude_dirs = {'.git', '__pycache__', 'node_modules', 'scripts', '.github'}
-          
-          zip_path = Path('tab-keeper.zip')
-          with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-              for root, dirs, files in os.walk('.'):
-                  dirs[:] = [d for d in dirs if d not in exclude_dirs]
-                  for file in files:
-                      if file in exclude_files or file.endswith('.pyc'):
-                          continue
-                      file_path = Path(root) / file
-                      arcname = file_path.relative_to(Path('.'))
-                      zipf.write(file_path, arcname)
-          
-          print(f"✅ Created {zip_path}")
-          PYTHON_SCRIPT
+          zip -r tab-keeper-${{ steps.get_version.outputs.VERSION }}.zip \
+            manifest.json \
+            background.js \
+            content.js \
+            popup.html \
+            popup.js \
+            options.html \
+            options.js \
+            icons/ \
+            -x "*.md" \
+            -x "*.py" \
+            -x "*.sh" \
+            -x ".github/*" \
+            -x ".git/*"
       
       - name: Package as CRX (Chrome Extension)
         id: package_crx
