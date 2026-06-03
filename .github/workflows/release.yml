@@ -27,12 +27,14 @@ jobs:
       
       - name: Get version from tag
         id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
       
       - name: Verify manifest version matches tag
         run: |
           MANIFEST_VERSION=$(grep '"version":' ./manifest.json | sed 's/.*"version": *"\([^"]*\)".*/\1/')
-          TAG_VERSION="${{ steps.get_version.outputs.VERSION }}"
+          TAG_VERSION="$${{ steps.get_version.outputs.VERSION }}"
           if [ "$MANIFEST_VERSION" != "$TAG_VERSION" ]; then
             echo "❌ Version mismatch!"
             echo "   Tag: v$TAG_VERSION"
@@ -44,7 +46,7 @@ jobs:
       
       - name: Create ZIP package
         run: |
-          zip -r tab-keeper-${{ steps.get_version.outputs.VERSION }}.zip \
+          zip -r tab-keeper-$${{ steps.get_version.outputs.VERSION }}.zip \
             manifest.json \
             background.js \
             content.js \
@@ -78,19 +80,19 @@ jobs:
       - name: Upload ZIP as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tab-keeper-${{ steps.get_version.outputs.VERSION }}
+          name: tab-keeper-$${{ steps.get_version.outputs.VERSION }}
           path: ./tab-keeper.zip
           retention-days: 30
       
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          name: Tab Keeper v${{ steps.get_version.outputs.VERSION }}
+          name: Tab Keeper v$${{ steps.get_version.outputs.VERSION }}
           draft: false
           prerelease: false
           generate_release_notes: true
           body: |
-            ## Tab Keeper v${{ steps.get_version.outputs.VERSION }}
+            ## Tab Keeper v$${{ steps.get_version.outputs.VERSION }}
             
             ### 📦 Installation
             
@@ -109,7 +111,7 @@ jobs:
             
             ### 📝 Changes
             
-            - Version ${{ steps.get_version.outputs.VERSION }}
+            - Version $${{ steps.get_version.outputs.VERSION }}
             - Released: $(date +%Y-%m-%d)
             
             ---
