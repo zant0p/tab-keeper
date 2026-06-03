@@ -1,8 +1,8 @@
 # Tab Keeper - Privacy Policy
 
 **Last Updated:** June 2, 2026  
-**Extension Version:** 1.0.13  
-**Contact:** zantop88@gmail.com
+**Extension Version:** 1.0.15  
+**Contact:** zantop@protonmail.com
 
 ---
 
@@ -142,9 +142,9 @@ We may update this privacy policy periodically. The "Last Updated" date at the t
 For questions, concerns, or requests related to this privacy policy:
 
 **Developer:** BJ  
-**Email:** zantop88@gmail.com  
+**Email:** zantop@protonmail.com  
 **Extension:** Tab Keeper  
-**Version:** 1.0.13
+**Version:** 1.0.15
 
 ---
 
