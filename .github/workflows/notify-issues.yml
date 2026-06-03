@@ -1,0 +1,46 @@
+name: Notify on Issues & PRs
+
+on:
+  issues:
+    types: [opened, labeled, assigned, closed]
+  pull_request:
+    types: [opened, review_requested, closed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send notification to OpenClaw
+        env:
+          OPENCLAW_URL: ${{ secrets.OPENCLAW_WEBHOOK_URL }}
+          OPENCLAW_API_KEY: ${{ secrets.OPENCLAW_API_KEY }}
+        run: |
+          # Determine event type
+          if [ "${{ github.event_name }}" = "issues" ]; then
+            EVENT_TYPE="issue"
+            TITLE="${{ github.event.issue.title }}"
+            NUMBER="${{ github.event.issue.number }}"
+            ACTION="${{ github.event.action }}"
+            URL="${{ github.event.issue.html_url }}"
+          else
+            EVENT_TYPE="pull_request"
+            TITLE="${{ github.event.pull_request.title }}"
+            NUMBER="${{ github.event.pull_request.number }}"
+            ACTION="${{ github.event.action }}"
+            URL="${{ github.event.pull_request.html_url }}"
+          fi
+          
+          # Send to OpenClaw
+          curl -X POST "$OPENCLAW_URL" \
+            -H "Authorization: Bearer $OPENCLAW_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"source\": \"github\",
+              \"repo\": \"${{ github.repository }}\",
+              \"type\": \"$EVENT_TYPE\",
+              \"action\": \"$ACTION\",
+              \"title\": \"$TITLE\",
+              \"number\": $NUMBER,
+              \"url\": \"$URL\",
+              \"actor\": \"${{ github.actor }}\"
+            }"
