@@ -61,22 +61,6 @@ jobs:
             -x ".github/*" \
             -x ".git/*"
       
-      - name: Package as CRX (Chrome Extension)
-        id: package_crx
-        run: |
-          echo "⚠️ CRX packaging requires .pem key for signing"
-          echo "   GitHub Actions cannot securely store your private key"
-          echo ""
-          echo "📦 Manual step required:"
-          echo "   1. Download tab-keeper.zip from this workflow artifacts"
-          echo "   2. Unzip locally"
-          echo "   3. Go to chrome://extensions/"
-          echo "   4. Developer mode → Pack extension"
-          echo "   5. Select the unzipped folder"
-          echo "   6. Upload tab-keeper.crx to this release manually"
-          echo ""
-          echo "✅ ZIP package created as workflow artifact"
-      
       - name: Upload ZIP as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -88,31 +72,30 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           name: Tab Keeper v$${{ steps.get_version.outputs.VERSION }}
-          draft: true
+          draft: false
           prerelease: false
           generate_release_notes: true
+          files: |
+            ./tab-keeper.zip
           body: |
             ## Tab Keeper v$${{ steps.get_version.outputs.VERSION }}
             
             ### 📦 Installation
             
-            **Note:** CRX file must be uploaded manually (requires private signing key).
-            
             1. Download `tab-keeper.zip` from Assets below
             2. Unzip the file
             3. In Chrome: `chrome://extensions/` → Developer mode
-            4. Click "Pack extension" → Select the unzipped folder
-            5. Install the generated `.crx` file
+            4. Click "Load unpacked" → Select the unzipped folder
+            5. Extension is now installed!
             
-            ### 🔄 Auto-Update
+            ### 🔄 Updates
             
-            Once installed, the extension will auto-update from GitHub releases.
-            No manual updates needed!
+            For future updates, repeat the process with the new ZIP file.
             
             ### 📝 Changes
             
             - Version $${{ steps.get_version.outputs.VERSION }}
-            - Released: $(date +%Y-%m-%d)
+            - Released: ${{ steps.get_version.outputs.DATE }}
             
             ---
             
@@ -124,25 +107,13 @@ jobs:
         run: |
           echo ""
           echo "=============================================="
-          echo "🎉 Release draft created successfully!"
+          echo "🎉 Release published successfully!"
           echo "=============================================="
           echo ""
-          echo "✅ ZIP package uploaded as workflow artifact"
-          echo "✅ GitHub release draft created"
-          echo ""
-          echo "⚠️ MANUAL STEPS REQUIRED:"
-          echo ""
-          echo "1. Download the ZIP artifact from this workflow:"
-          echo "   https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          echo ""
-          echo "2. Create CRX file locally (requires your .pem key):"
-          echo "   - Unzip tab-keeper.zip"
-          echo "   - chrome://extensions/ → Developer mode → Pack extension"
-          echo "   - Select the unzipped folder"
-          echo ""
-          echo "3. Upload CRX to the release draft:"
+          echo "✅ ZIP package attached to release"
+          echo "✅ Release is live at:"
           echo "   https://github.com/${{ github.repository }}/releases"
           echo ""
-          echo "4. Publish the release when ready!"
+          echo "📦 Installation: Download ZIP → Unzip → Load unpacked in Chrome"
           echo ""
           echo "=============================================="
