@@ -1,6 +1,6 @@
 # Tab Keeper - Documentation
 
-**Current Version:** v1.0.14 (June 2, 2026)  
+**Current Version:** v1.0.15 (June 2, 2026)  
 **Contact:** zantop@protonmail.com
 
 
@@ -73,4 +73,4 @@ For questions, issues, or feature requests:
 ---
 
 **Last Updated:** June 2, 2026  
-**Current Version:** 1.0.14
+**Current Version:** 1.0.15

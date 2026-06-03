@@ -1,7 +1,7 @@
 # Tab Keeper - Chrome Extension
 
 
-## Latest Release: v1.0.14
+## Latest Release: v1.0.15
 
 **Released:** June 2, 2026
 
@@ -127,7 +127,7 @@ tab-keeper/
 
 ## Version History
 
-### v1.0.14 (June 2, 2026) - Production Release
+### v1.0.15 (June 2, 2026) - Production Release
 - ✅ Fixed auto-login to only trigger on target website
 - ✅ Updated contact email to zantop@protonmail.com
 - ✅ Removed experimental code for Chrome Web Store compliance
