@@ -13,7 +13,7 @@
 - ✅ Improved timer reliability with Chrome Alarms API
 
 ### Download
-- **Chrome Web Store:** https://chromewebstore.google.com/detail/tab-keeper/[EXTENSION_ID_HERE]
+- **Chrome Web Store:** https://chromewebstore.google.com/detail/tab-keeper/jlaiolmcjkaipeccefpmmliacjbmeadf
 - **GitHub Releases:** https://github.com/zant0p/tab-keeper/releases/latest
 
 ---
@@ -161,7 +161,7 @@ tab-keeper/
 **Email:** zantop@protonmail.com  
 **GitHub:** https://github.com/zant0p/tab-keeper  
 **Issues:** https://github.com/zant0p/tab-keeper/issues  
-**Chrome Web Store:** [View Store Listing](https://chromewebstore.google.com/detail/tab-keeper/[EXTENSION_ID_HERE])
+**Chrome Web Store:** https://chromewebstore.google.com/detail/tab-keeper/jlaiolmcjkaipeccefpmmliacjbmeadf
 
 For bugs, feature requests, or questions, please open a GitHub issue or contact via email.
 
