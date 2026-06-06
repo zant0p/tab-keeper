@@ -3,7 +3,8 @@
 
 ## Latest Release: v1.0.15
 
-**Released:** June 2, 2026
+**Released:** June 2, 2026  
+**Chrome Web Store:** ✅ Approved & Live!
 
 ### What's New
 - ✅ Fixed auto-login to only trigger on target website (not any login page)
@@ -12,8 +13,8 @@
 - ✅ Improved timer reliability with Chrome Alarms API
 
 ### Download
+- **Chrome Web Store:** https://chromewebstore.google.com/detail/tab-keeper/[EXTENSION_ID_HERE]
 - **GitHub Releases:** https://github.com/zant0p/tab-keeper/releases/latest
-- **Chrome Web Store:** Pending submission
 
 ---
 
@@ -159,9 +160,16 @@ tab-keeper/
 
 **Email:** zantop@protonmail.com  
 **GitHub:** https://github.com/zant0p/tab-keeper  
-**Issues:** https://github.com/zant0p/tab-keeper/issues
+**Issues:** https://github.com/zant0p/tab-keeper/issues  
+**Chrome Web Store:** [View Store Listing](https://chromewebstore.google.com/detail/tab-keeper/[EXTENSION_ID_HERE])
 
 For bugs, feature requests, or questions, please open a GitHub issue or contact via email.
+
+### 📊 Tracking Downloads & Reviews
+
+- **Downloads:** View in Chrome Web Store Developer Dashboard → Analytics
+- **Reviews:** Monitor Chrome Web Store Developer Dashboard → Ratings & Reviews
+- **GitHub Activity:** Tracked via GitHub Actions (issues/PRs notify automatically)
 
 ---
 
