@@ -137,13 +137,22 @@
       Enable Tab Keeper
     </label>
     
-    <label for="targetUrl">Target URL</label>
-    <input type="url" id="targetUrl" placeholder="https://example.com/dashboard">
-    <div class="hint">The extension will keep this tab active and return to it after inactivity</div>
+    <label for="primaryUrl">Primary Target URL ⭐</label>
+    <input type="url" id="primaryUrl" placeholder="https://example.com/dashboard">
+    <div class="hint">The extension will always switch back to this tab after inactivity. This is the only "safe zone".</div>
+    
+    <label for="secondaryUrl">Secondary Target URL</label>
+    <input type="url" id="secondaryUrl" placeholder="https://example.com/reports">
+    <div class="hint">Optional second tab to monitor and auto-reopen if closed. Timer will still run when on this tab.</div>
     
     <label for="timerMinutes">Return Timer (minutes)</label>
     <input type="number" id="timerMinutes" min="1" max="60" value="10">
-    <div class="hint">How long to wait before switching back (1-60 minutes)</div>
+    <div class="hint">How long to wait before switching back to primary tab (1-60 minutes)</div>
+    
+    <div id="managedNotice" class="message" style="display:none; background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9;">
+      <strong>🏢 Managed by Enterprise Policy</strong><br>
+      Some settings are configured by your organization and cannot be changed locally.
+    </div>
   </div>
 
   <div class="section">

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Tab Keeper",
-  "version": "1.0.15",
-  "description": "Keeps a designated tab active, auto-switches back after inactivity, and auto-logins when needed",
+  "version": "1.0.16",
+  "description": "Keeps designated tabs active, auto-switches back after inactivity, and auto-logins when needed. Supports Chrome Enterprise managed storage.",
   "permissions": [
     "tabs",
     "storage",
@@ -10,6 +10,9 @@
     "scripting",
     "alarms"
   ],
+  "storage": {
+    "managed_schema": "managed_storage_schema.json"
+  },
   "host_permissions": [
     "<all_urls>"
   ],

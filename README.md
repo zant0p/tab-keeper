@@ -1,16 +1,17 @@
 # Tab Keeper - Chrome Extension
 
+## Latest Release: v1.0.16
 
-## Latest Release: v1.0.15
+**Released:** June 17, 2026  
+**Chrome Web Store:** 🔄 Ready for Submission
 
-**Released:** June 2, 2026  
-**Chrome Web Store:** ✅ Approved & Live!
-
-### What's New
-- ✅ Fixed auto-login to only trigger on target website (not any login page)
-- ✅ Updated contact and support email
-- ✅ Cleaned up debug code for Chrome Web Store submission
-- ✅ Improved timer reliability with Chrome Alarms API
+### What's New in v1.0.16
+- 🏢 **Enterprise Support**: Chrome Admin Console policy configuration
+- 🎯 **Dual Tab Monitoring**: Primary + Secondary target URLs
+- 🔄 **Auto-Reopen**: Automatically reopens target tabs if closed
+- ⭐ **Smart Timer**: Only primary tab is "safe zone" - timer runs everywhere else
+- 💾 **Persistent Storage**: Enterprise policies survive cache clears & restarts
+- ✅ All previous v1.0.15 features retained
 
 ### Download
 - **Chrome Web Store:** https://chromewebstore.google.com/detail/tab-keeper/jlaiolmcjkaipeccefpmmliacjbmeadf
@@ -51,26 +52,34 @@ Keeps a designated tab active, automatically switches back after inactivity, and
 
 ## Configuration
 
+### For Individual Users
+
 1. Right-click the extension icon → **Options**
 2. Or click the icon → **⚙️ Settings**
+
+### For Enterprise Administrators
+
+See [ENTERPRISE_DEPLOYMENT.md](ENTERPRISE_DEPLOYMENT.md) for Chrome Admin Console deployment, policy configuration, and managed guest session setup.
 
 ### Required Settings
 
 | Setting | Description |
 |---------|-------------|
 | **Enable Tab Keeper** | Toggle the extension on/off |
-| **Target URL** | The URL to keep active (e.g., `https://example.com/dashboard`) |
-| **Return Timer** | Minutes before switching back (default: 10) |
+| **Primary URL ⭐** | The main URL to keep active (only "safe zone") |
+| **Secondary URL** | Optional second URL to monitor & auto-reopen |
+| **Return Timer** | Minutes before switching back to primary (1-60) |
 | **Username** | Auto-login username/email |
 | **Password** | Auto-login password |
 
 ## How It Works
 
 1. **Monitor**: Extension watches which tab is active
-2. **Timer Start**: When you switch away from target tab, 10-min timer begins
-3. **Auto-Switch**: When timer expires, extension switches back to target tab
-4. **Login Check**: Content script detects login pages and auto-fills credentials
-5. **Repeat**: Continues monitoring in background
+2. **Timer Start**: When you switch away from **primary tab**, timer begins (secondary tab is NOT a safe zone)
+3. **Auto-Switch**: When timer expires, extension switches back to **primary tab only**
+4. **Auto-Reopen**: If primary or secondary tab is closed, it's automatically reopened
+5. **Login Check**: Content script detects login pages and auto-fills credentials
+6. **Repeat**: Continues monitoring in background
 
 ## Security Notes
 
@@ -127,6 +136,15 @@ tab-keeper/
 | `<all_urls>` | Inject login script on any site |
 
 ## Version History
+
+### v1.0.16 (June 17, 2026) - Enterprise Release
+- 🏢 Added Chrome Enterprise managed storage support (`chrome.storage.managed`)
+- 🎯 Dual tab monitoring: Primary + Secondary URLs
+- 🔄 Auto-reopen target tabs if closed
+- ⭐ Smart timer: Only primary tab stops the timer
+- 💾 Enterprise policies for Admin Console deployment
+- 📄 New: ENTERPRISE_DEPLOYMENT.md guide
+- 🔧 Managed storage schema for policy configuration
 
 ### v1.0.15 (June 2, 2026) - Production Release
 - ✅ Fixed auto-login to only trigger on target website

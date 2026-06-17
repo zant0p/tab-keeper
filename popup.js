@@ -1,11 +1,11 @@
-// Tab Keeper - Popup Script
+// Tab Keeper - Popup Script (v1.0.16)
 
 let countdownInterval = null;
 
 async function updateUI() {
   const statusEl = document.getElementById('status');
-  const targetUrlEl = document.getElementById('targetUrl');
-  const usernameEl = document.getElementById('username');
+  const primaryUrlEl = document.getElementById('primaryUrl');
+  const secondaryUrlEl = document.getElementById('secondaryUrl');
   const timerDisplay = document.getElementById('timerDisplay');
   const countdownEl = document.getElementById('countdown');
 
@@ -14,8 +14,8 @@ async function updateUI() {
     const config = response || {};
     
     // Show config
-    targetUrlEl.textContent = config.targetUrl || 'Not configured';
-    usernameEl.textContent = config.username || 'Not configured';
+    primaryUrlEl.textContent = config.primaryUrl || 'Not configured';
+    secondaryUrlEl.textContent = config.secondaryUrl || 'Not configured';
 
     if (!config.enabled) {
       statusEl.className = 'status inactive';
@@ -25,9 +25,9 @@ async function updateUI() {
       return;
     }
 
-    if (!config.targetUrl) {
+    if (!config.primaryUrl) {
       statusEl.className = 'status inactive';
-      statusEl.textContent = 'No target URL configured';
+      statusEl.textContent = 'No primary URL configured';
       timerDisplay.style.display = 'none';
       stopCountdown();
       return;
@@ -36,17 +36,26 @@ async function updateUI() {
     // Check current tab
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const currentTab = tabs[0];
-      const isOnTarget = currentTab && currentTab.url && currentTab.url.startsWith(config.targetUrl);
+      const isOnPrimary = currentTab && currentTab.url && 
+        (currentTab.url === config.primaryUrl || currentTab.url.startsWith(config.primaryUrl));
+      const isOnSecondary = config.secondaryUrl && currentTab && currentTab.url &&
+        (currentTab.url === config.secondaryUrl || currentTab.url.startsWith(config.secondaryUrl));
 
-      if (isOnTarget) {
+      if (isOnPrimary) {
         statusEl.className = 'status active';
-        statusEl.textContent = 'On target tab';
+        statusEl.textContent = '✅ On primary tab (safe zone)';
         timerDisplay.style.display = 'none';
         stopCountdown();
+      } else if (isOnSecondary) {
+        statusEl.className = 'status waiting';
+        const minutes = Math.round(config.timerDuration / 60000);
+        statusEl.textContent = '⚠️ On secondary tab (timer running, ~' + minutes + ' min)';
+        timerDisplay.style.display = 'block';
+        startCountdown(config.lastActivity, config.timerDuration);
       } else if (config.timerActive && config.lastActivity) {
         statusEl.className = 'status waiting';
         const minutes = Math.round(config.timerDuration / 60000);
-        statusEl.textContent = 'Away from target (returning in ~' + minutes + ' min)';
+        statusEl.textContent = '⏰ Away from targets (returning in ~' + minutes + ' min)';
         timerDisplay.style.display = 'block';
         startCountdown(config.lastActivity, config.timerDuration);
       } else {
@@ -97,7 +106,6 @@ document.getElementById('openOptions').addEventListener('click', () => {
 
 document.getElementById('switchNow').addEventListener('click', () => {
   console.log('[Popup] Switch button clicked');
-  // Ask background script to switch (it handles finding/creating the tab)
   chrome.runtime.sendMessage({ action: 'manualSwitch' }, (response) => {
     console.log('[Popup] Switch response:', response);
     if (response && response.status === 'switching') {
@@ -110,7 +118,7 @@ document.getElementById('switchNow').addEventListener('click', () => {
 // Update UI on load
 updateUI();
 
-// Notify background script that popup was opened (for interference tracking)
+// Notify background script that popup was opened
 chrome.runtime.sendMessage({ action: 'popupOpened' });
 
 // Clean up when popup closes

@@ -1,63 +1,124 @@
-// Tab Keeper - Background Service Worker
-// Monitors activity on non-target tabs, switches back after 10 min of INACTIVITY
-// Uses chrome.alarms API for reliable timer that survives service worker restarts
+// Tab Keeper - Background Service Worker (v1.0.16)
+// Supports Chrome Enterprise managed storage + local fallback
+// Monitors primary + secondary tabs, auto-reopens if closed
+// Timer only stops on primary tab (secondary is NOT a safe zone)
 
-const TIMER_MINUTES = 10;
+const DEFAULT_TIMER_MINUTES = 10;
+
+// State
 let isSwitchingBack = false;
-let targetTabId = null;
 let activityListenerInstalled = false;
+let primaryTabId = null;
+let secondaryTabId = null;
+
+// Storage helper: reads from managed first, falls back to local
+async function getConfig(keys = null) {
+  return new Promise((resolve) => {
+    // Try managed storage first (Enterprise policy)
+    chrome.storage.managed.get(keys, (managedResult) => {
+      const hasManagedConfig = managedResult && Object.keys(managedResult).length > 0;
+      
+      if (hasManagedConfig) {
+        console.log('[Tab Keeper] Using managed storage (Enterprise policy)');
+        resolve(managedResult);
+      } else {
+        // Fall back to local storage
+        chrome.storage.local.get(keys, (localResult) => {
+          console.log('[Tab Keeper] Using local storage');
+          resolve(localResult);
+        });
+      }
+    });
+  });
+}
+
+// Storage helper: writes to local (managed is read-only for extension)
+async function setConfig(data) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set(data, () => {
+      console.log('[Tab Keeper] Config saved to local storage');
+      resolve();
+    });
+  });
+}
 
 // Initialize on install
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('[Tab Keeper] Installed');
-  chrome.storage.local.get(['timerMinutes'], (result) => {
-    if (!result.timerMinutes) {
-      chrome.storage.local.set({ timerMinutes: TIMER_MINUTES });
+  console.log('[Tab Keeper] Installed v1.0.16');
+  // Set defaults if not configured
+  getConfig(['timerMinutes']).then((config) => {
+    if (!config.timerMinutes) {
+      setConfig({ timerMinutes: DEFAULT_TIMER_MINUTES });
     }
   });
 });
 
-// On startup, verify settings are loaded (they persist in chrome.storage.local automatically)
+// On startup - load config and restore tabs if needed
 chrome.runtime.onStartup.addListener(async () => {
-  console.log('[Tab Keeper] Extension started - settings persist in chrome.storage.local');
-  const config = await chrome.storage.local.get(['targetUrl', 'username', 'password', 'enabled']);
+  console.log('[Tab Keeper] Extension started');
+  const config = await getConfig(['primaryUrl', 'secondaryUrl', 'username', 'password', 'enabled', 'timerMinutes']);
   console.log('[Tab Keeper] Loaded config:', {
-    targetUrl: config.targetUrl ? config.targetUrl.substring(0, 30) + '...' : 'none',
+    primaryUrl: config.primaryUrl ? config.primaryUrl.substring(0, 30) + '...' : 'none',
+    secondaryUrl: config.secondaryUrl ? config.secondaryUrl.substring(0, 30) + '...' : 'none',
     hasUsername: !!config.username,
     hasPassword: !!config.password,
-    enabled: config.enabled
+    enabled: config.enabled,
+    timerMinutes: config.timerMinutes
   });
+  
+  // Auto-open target tabs if enabled and URLs configured
+  if (config.enabled && config.primaryUrl) {
+    await ensureTabsExist(config);
+  }
 });
 
-// Restore timer on service worker startup (not needed with alarms - they persist automatically!)
-// chrome.alarms API handles persistence across service worker restarts
+// Ensure target tabs exist (auto-reopen if closed)
+async function ensureTabsExist(config) {
+  const allTabs = await chrome.tabs.query({});
+  
+  // Check primary tab
+  const primaryExists = allTabs.some(tab => isTargetUrl(tab.url, config.primaryUrl));
+  if (!primaryExists && config.primaryUrl) {
+    console.log('[Tab Keeper] Primary tab not found - creating it');
+    const newTab = await chrome.tabs.create({ url: config.primaryUrl, active: false });
+    primaryTabId = newTab.id;
+  }
+  
+  // Check secondary tab (if configured)
+  if (config.secondaryUrl) {
+    const secondaryExists = allTabs.some(tab => isTargetUrl(tab.url, config.secondaryUrl));
+    if (!secondaryExists) {
+      console.log('[Tab Keeper] Secondary tab not found - creating it');
+      const newTab = await chrome.tabs.create({ url: config.secondaryUrl, active: false });
+      secondaryTabId = newTab.id;
+    }
+  }
+}
 
-// Listen for alarm events - THIS IS THE KEY FOR RELIABLE SWITCHING!
+// Listen for alarm events
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  console.log('[Tab Keeper] >>> ALARM EVENT RECEIVED: ' + alarm.name);
+  console.log('[Tab Keeper] >>> ALARM EVENT: ' + alarm.name);
   if (alarm.name === 'switchBack') {
-    console.log('[Tab Keeper] >>> ALARM FIRED - switching back to target <<<');
+    console.log('[Tab Keeper] >>> ALARM FIRED - switching to primary <<<');
     try {
-      await switchBackToTarget();
-      console.log('[Tab Keeper] >>> switchBackToTarget completed after alarm');
+      await switchBackToPrimary();
+      console.log('[Tab Keeper] >>> switchBackToPrimary completed');
     } catch (error) {
       console.error('[Tab Keeper] Error during alarm-triggered switch:', error);
     }
-  } else {
-    console.log('[Tab Keeper] Unknown alarm: ' + alarm.name);
   }
 });
 
 // Get timer duration in ms
 async function getTimerMs() {
-  const config = await chrome.storage.local.get(['timerMinutes']);
-  return (config.timerMinutes || TIMER_MINUTES) * 60 * 1000;
+  const config = await getConfig(['timerMinutes']);
+  return (config.timerMinutes || DEFAULT_TIMER_MINUTES) * 60 * 1000;
 }
 
-// Start or restart the inactivity timer using chrome.alarms
+// Start or restart the inactivity timer
 async function startInactivityTimer() {
-  const timerMinutes = await chrome.storage.local.get(['timerMinutes']);
-  const minutes = timerMinutes.timerMinutes || TIMER_MINUTES;
+  const config = await getConfig(['timerMinutes']);
+  const minutes = config.timerMinutes || DEFAULT_TIMER_MINUTES;
   
   console.log('[Tab Keeper] Timer STARTED - ' + minutes + ' minutes');
   console.log('[Tab Keeper] Will fire at: ' + new Date(Date.now() + (minutes * 60000)).toLocaleTimeString());
@@ -79,7 +140,7 @@ async function startInactivityTimer() {
     timerStartTime: now
   });
   
-  console.log('[Tab Keeper] Timer state saved to storage');
+  console.log('[Tab Keeper] Timer state saved');
 }
 
 // Stop the timer
@@ -99,33 +160,32 @@ async function stopTimer() {
 
 // Record user activity and reset timer
 async function recordActivity(tabId) {
-  const state = await chrome.storage.local.get(['timerActive', 'targetUrl']);
+  const config = await getConfig(['primaryUrl', 'timerMinutes']);
+  const state = await chrome.storage.local.get(['timerActive']);
   
   if (!state.timerActive) {
     console.log('[Tab Keeper] Activity ignored - timer not active');
     return;
   }
   
-  // Check if this activity is on the target tab
-  if (tabId && state.targetUrl) {
+  // Check if this activity is on the primary tab (the only safe zone)
+  if (tabId && config.primaryUrl) {
     try {
       const tab = await chrome.tabs.get(tabId);
-      console.log('[Tab Keeper] Activity from tab:', tabId, 'URL:', tab.url ? tab.url.substring(0, 50) : 'no URL');
-      console.log('[Tab Keeper] Target URL:', state.targetUrl.substring(0, 50));
+      const isOnPrimary = isTargetUrl(tab.url, config.primaryUrl);
       
-      if (tab.url && isTargetUrl(tab.url, state.targetUrl)) {
-        console.log('[Tab Keeper] Activity ignored - on target tab');
-        return; // Don't reset timer if activity is on target tab
+      if (isOnPrimary) {
+        console.log('[Tab Keeper] Activity on PRIMARY tab - ignoring (safe zone)');
+        return; // Don't reset timer if on primary tab
       }
-      console.log('[Tab Keeper] Activity on non-target tab - will reset timer');
+      
+      console.log('[Tab Keeper] Activity on non-primary tab - resetting timer');
     } catch (e) {
-      // Tab might not exist, continue with activity recording
       console.log('[Tab Keeper] Could not get tab info:', e.message);
     }
   }
   
-  console.log('[Tab Keeper] Activity recorded - resetting timer');
-  // Clear and restart the alarm
+  // Reset timer
   await startInactivityTimer();
 }
 
@@ -155,6 +215,33 @@ async function installActivityListener(tabId) {
   }
 }
 
+// Monitor tab closure - auto-reopen target tabs
+chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
+  const config = await getConfig(['primaryUrl', 'secondaryUrl', 'enabled']);
+  
+  if (!config.enabled || (!config.primaryUrl && !config.secondaryUrl)) {
+    return;
+  }
+  
+  // Check if closed tab was a target tab
+  if (tabId === primaryTabId || tabId === secondaryTabId) {
+    console.log('[Tab Keeper] Target tab closed:', tabId);
+    
+    // Reopen after a short delay
+    setTimeout(async () => {
+      if (tabId === primaryTabId && config.primaryUrl) {
+        console.log('[Tab Keeper] Reopening primary tab');
+        const newTab = await chrome.tabs.create({ url: config.primaryUrl, active: false });
+        primaryTabId = newTab.id;
+      } else if (tabId === secondaryTabId && config.secondaryUrl) {
+        console.log('[Tab Keeper] Reopening secondary tab');
+        const newTab = await chrome.tabs.create({ url: config.secondaryUrl, active: false });
+        secondaryTabId = newTab.id;
+      }
+    }, 1000);
+  }
+});
+
 // Monitor tab changes
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   console.log('[Tab Keeper] Tab activated: ' + activeInfo.tabId);
@@ -173,11 +260,10 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
   }
 });
 
-// Extract base URL (domain + first path segment) for matching
+// Extract base URL for matching
 function getBaseUrl(url) {
   try {
     const urlObj = new URL(url);
-    // Match domain + first path segment (e.g., example.com/app)
     const firstPath = urlObj.pathname.split('/')[1] || '';
     return urlObj.origin + (firstPath ? '/' + firstPath : '');
   } catch (e) {
@@ -185,30 +271,21 @@ function getBaseUrl(url) {
   }
 }
 
-// Check if a tab URL matches the target (handles URL changes after login)
+// Check if a tab URL matches the target
 function isTargetUrl(tabUrl, targetUrl) {
   if (!tabUrl || !targetUrl) return false;
-  
-  // Exact match
   if (tabUrl === targetUrl) return true;
-  
-  // Starts with target
   if (tabUrl.startsWith(targetUrl)) return true;
   
-  // Match by base URL (domain + first path)
   const tabBase = getBaseUrl(tabUrl);
   const targetBase = getBaseUrl(targetUrl);
-  
   if (tabBase === targetBase) return true;
   
-  // Match by domain only (most flexible)
   try {
     const tabDomain = new URL(tabUrl).hostname;
     const targetDomain = new URL(targetUrl).hostname;
     if (tabDomain === targetDomain) return true;
-  } catch (e) {
-    // URL parsing failed
-  }
+  } catch (e) {}
   
   return false;
 }
@@ -221,36 +298,37 @@ async function handleTabSwitch(newTabId) {
     return;
   }
 
-  const config = await chrome.storage.local.get(['targetUrl', 'enabled']);
+  const config = await getConfig(['primaryUrl', 'secondaryUrl', 'enabled']);
   
   if (!config.enabled) {
     console.log('[Tab Keeper] Extension disabled');
     return;
   }
   
-  if (!config.targetUrl) {
-    console.log('[Tab Keeper] No target URL configured');
+  if (!config.primaryUrl && !config.secondaryUrl) {
+    console.log('[Tab Keeper] No target URLs configured');
     return;
   }
 
   try {
     const tab = await chrome.tabs.get(newTabId);
     const tabUrl = tab.url || '';
-    const isTargetTab = isTargetUrl(tabUrl, config.targetUrl);
     
-    console.log('[Tab Keeper] Current tab URL: ' + tabUrl);
-    console.log('[Tab Keeper] Target URL: ' + config.targetUrl);
-    console.log('[Tab Keeper] Is target tab: ' + isTargetTab);
+    // Check if this is the primary tab (the only safe zone)
+    const isPrimaryTab = config.primaryUrl && isTargetUrl(tabUrl, config.primaryUrl);
+    const isSecondaryTab = config.secondaryUrl && isTargetUrl(tabUrl, config.secondaryUrl);
     
-    if (isTargetTab) {
-      console.log('[Tab Keeper] ON TARGET - stopping timer');
-      targetTabId = newTabId;
+    console.log('[Tab Keeper] Current tab URL:', tabUrl.substring(0, 80));
+    console.log('[Tab Keeper] Is primary tab:', isPrimaryTab);
+    console.log('[Tab Keeper] Is secondary tab:', isSecondaryTab);
+    
+    if (isPrimaryTab) {
+      console.log('[Tab Keeper] ON PRIMARY - stopping timer');
+      primaryTabId = newTabId;
       stopTimer();
     } else {
-      console.log('[Tab Keeper] AWAY FROM TARGET - starting timer');
+      console.log('[Tab Keeper] AWAY FROM PRIMARY - starting timer');
       await startInactivityTimer();
-      
-      // Install activity listener on this tab
       await installActivityListener(newTabId);
     }
   } catch (error) {
@@ -258,53 +336,49 @@ async function handleTabSwitch(newTabId) {
   }
 }
 
-// Switch back to target tab
-async function switchBackToTarget() {
-  console.log('[Tab Keeper] >>> switchBackToTarget CALLED');
+// Switch back to primary tab
+async function switchBackToPrimary() {
+  console.log('[Tab Keeper] >>> switchBackToPrimary CALLED');
   
-  const config = await chrome.storage.local.get(['targetUrl', 'username', 'password']);
+  const config = await getConfig(['primaryUrl', 'username', 'password']);
   
-  if (!config.targetUrl) {
-    console.log('[Tab Keeper] No target URL configured');
+  if (!config.primaryUrl) {
+    console.log('[Tab Keeper] No primary URL configured');
     stopTimer();
     return;
   }
 
-  console.log('[Tab Keeper] === SWITCHING BACK TO TARGET ===');
-  console.log('[Tab Keeper] Target URL: ' + config.targetUrl);
+  console.log('[Tab Keeper] === SWITCHING TO PRIMARY ===');
+  console.log('[Tab Keeper] Primary URL: ' + config.primaryUrl);
   isSwitchingBack = true;
   stopTimer();
 
   try {
-    // Find existing tab with target URL (handles URL changes after login)
-    console.log('[Tab Keeper] Querying all tabs...');
     const allTabs = await chrome.tabs.query({});
-    
-    console.log('[Tab Keeper] Total tabs found: ' + allTabs.length);
     
     let existingTab = null;
     let matchReason = '';
     
     // Strategy 1: Exact URL match
-    existingTab = allTabs.find(tab => tab.url === config.targetUrl);
+    existingTab = allTabs.find(tab => tab.url === config.primaryUrl);
     if (existingTab) matchReason = 'exact URL match';
     
     // Strategy 2: URL starts with target
     if (!existingTab) {
-      existingTab = allTabs.find(tab => tab.url && tab.url.startsWith(config.targetUrl));
+      existingTab = allTabs.find(tab => tab.url && tab.url.startsWith(config.primaryUrl));
       if (existingTab) matchReason = 'URL starts with target';
     }
     
-    // Strategy 3: Match by base URL (domain + first path) - BEST FOR LOGIN FLOWS
+    // Strategy 3: Match by base URL
     if (!existingTab) {
-      existingTab = allTabs.find(tab => tab.url && isTargetUrl(tab.url, config.targetUrl));
-      if (existingTab) matchReason = 'base URL match (domain)';
+      existingTab = allTabs.find(tab => tab.url && isTargetUrl(tab.url, config.primaryUrl));
+      if (existingTab) matchReason = 'base URL match';
     }
     
     // Strategy 4: Match by domain only
     if (!existingTab) {
       try {
-        const targetDomain = new URL(config.targetUrl).hostname;
+        const targetDomain = new URL(config.primaryUrl).hostname;
         existingTab = allTabs.find(tab => {
           if (!tab.url) return false;
           try {
@@ -313,287 +387,70 @@ async function switchBackToTarget() {
             return false;
           }
         });
-        if (existingTab) matchReason = 'domain match only';
+        if (existingTab) matchReason = 'domain match';
       } catch (e) {
         console.log('[Tab Keeper] URL parsing failed:', e);
       }
     }
     
     if (existingTab) {
-      console.log('[Tab Keeper] FOUND existing tab: ' + existingTab.id);
-      console.log('[Tab Keeper] Tab URL: ' + existingTab.url);
-      console.log('[Tab Keeper] Match reason: ' + matchReason);
-      console.log('[Tab Keeper] Tab windowId: ' + existingTab.windowId);
+      console.log('[Tab Keeper] FOUND existing tab:', existingTab.id);
+      console.log('[Tab Keeper] Match reason:', matchReason);
       
-      try {
-        // Focus the window first
-        console.log('[Tab Keeper] Focusing window ' + existingTab.windowId);
-        await chrome.windows.update(existingTab.windowId, { focused: true });
-        console.log('[Tab Keeper] Window focused successfully');
-        
-        // Activate the tab
-        console.log('[Tab Keeper] Activating tab ' + existingTab.id);
-        await chrome.tabs.update(existingTab.id, { active: true, highlighted: true });
-        console.log('[Tab Keeper] Tab activated successfully');
-        
-        targetTabId = existingTab.id;
-        
-        console.log('[Tab Keeper] ✓✓✓ SUCCESS - switched to tab ' + existingTab.id + ' ✓✓✓');
-        
-        // Reset login attempt flag so content script can try auto-login again
-        setTimeout(() => {
-          chrome.tabs.sendMessage(existingTab.id, { action: 'resetLoginAttempt' }).catch(e => {
-            console.log('[Tab Keeper] Could not reset login attempt:', e.message);
-          });
-        }, 500);
-      } catch (switchError) {
-        console.error('[Tab Keeper] Failed to focus/activate tab:', switchError);
-        console.error('[Tab Keeper] Error details:', switchError.message);
-      }
+      await chrome.windows.update(existingTab.windowId, { focused: true });
+      await chrome.tabs.update(existingTab.id, { active: true, highlighted: true });
       
-      // Wait then check for login
-      setTimeout(async () => {
-        try {
-          await chrome.tabs.sendMessage(existingTab.id, { action: 'checkLogin' });
-          console.log('[Tab Keeper] Sent login check message');
-        } catch (e) {
-          console.log('[Tab Keeper] Could not send login check: ' + e.message);
-        }
-      }, 1500);
+      primaryTabId = existingTab.id;
+      console.log('[Tab Keeper] ✓ SUCCESS - switched to tab', existingTab.id);
       
-    } else {
-      console.log('[Tab Keeper] NO existing tab found - CREATING NEW TAB');
-      console.log('[Tab Keeper] Creating tab with URL: ' + config.targetUrl);
-      try {
-        const newTab = await chrome.tabs.create({ 
-          url: config.targetUrl, 
-          active: true 
+      // Reset login attempt flag
+      setTimeout(() => {
+        chrome.tabs.sendMessage(existingTab.id, { action: 'resetLoginAttempt' }).catch(e => {
+          console.log('[Tab Keeper] Could not reset login attempt:', e.message);
         });
-        targetTabId = newTab.id;
-        console.log('[Tab Keeper] ✓✓✓ Created new tab: ' + newTab.id + ' ✓✓✓');
-      } catch (createError) {
-        console.error('[Tab Keeper] Failed to create new tab:', createError);
-        console.error('[Tab Keeper] Error details:', createError.message);
-      }
+      }, 500);
+    } else {
+      console.log('[Tab Keeper] No existing tab found - creating new one');
+      const newTab = await chrome.tabs.create({ url: config.primaryUrl });
+      primaryTabId = newTab.id;
+      console.log('[Tab Keeper] ✓ Created new primary tab:', newTab.id);
     }
-    
   } catch (error) {
-    console.error('[Tab Keeper] ERROR switching back:', error);
-    console.error('[Tab Keeper] Error details:', error.message);
-    console.error('[Tab Keeper] Stack:', error.stack);
-  } finally {
-    isSwitchingBack = false;
-    console.log('[Tab Keeper] <<< switchBackToTarget COMPLETE');
+    console.error('[Tab Keeper] Error switching to primary:', error);
   }
 }
 
-// Listen for messages
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('[Tab Keeper] Message received: ' + (request ? request.action : 'unknown'));
+// Message handler
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('[Tab Keeper] Message received:', message.action);
   
-  if (request.action === 'loginRequired') {
-    console.log('[Tab Keeper] Login required - performing auto-login');
-    performAutoLogin(sender.tab);
+  if (message.action === 'getStatus') {
+    getConfig(['primaryUrl', 'secondaryUrl', 'enabled', 'username']).then((config) => {
+      chrome.storage.local.get(['timerActive', 'lastActivity', 'timerDuration', 'timerStartTime'], (state) => {
+        sendResponse({
+          ...config,
+          ...state
+        });
+      });
+    });
+    return true; // Keep channel open for async response
+  }
+  
+  if (message.action === 'manualSwitch') {
+    switchBackToPrimary().then(() => {
+      sendResponse({ status: 'switching' });
+    });
+    return true;
+  }
+  
+  if (message.action === 'userActivity') {
+    recordActivity(sender.tab?.id).then(() => {
+      sendResponse({ status: 'ok' });
+    });
+    return true;
+  }
+  
+  if (message.action === 'popupOpened') {
     sendResponse({ status: 'ok' });
   }
-  
-  if (request.action === 'checkLogin') {
-    sendResponse({ status: 'checked' });
-  }
-  
-  if (request.action === 'getTargetUrl') {
-    chrome.storage.local.get(['targetUrl']).then((result) => {
-      sendResponse({ targetUrl: result.targetUrl || null });
-    });
-    return true;
-  }
-  
-  if (request.action === 'resetLoginAttempt') {
-    sendResponse({ status: 'reset' });
-  }
-  
-  if (request.action === 'userActivity') {
-    // Pass the sender's tab ID so we can check if activity is on target tab
-    console.log('[Tab Keeper] userActivity message received from tab:', sender.tab ? sender.tab.id : 'unknown');
-    recordActivity(sender.tab ? sender.tab.id : null);
-    sendResponse({ status: 'recorded' });
-  }
-  
-  if (request.action === 'getStatus') {
-    chrome.storage.local.get(['timerActive', 'lastActivity', 'timerDuration', 'targetUrl', 'enabled', 'timerStartTime']).then((result) => {
-      console.log('[Tab Keeper] getStatus response:', result);
-      sendResponse(result);
-    });
-    return true;
-  }
-  
-  if (request.action === 'manualSwitch') {
-    console.log('[Tab Keeper] Manual switch requested');
-    switchBackToTarget();
-    sendResponse({ status: 'switching' });
-    return true;
-  }
-  
-  if (request.action === 'popupOpened') {
-    // Track when popup is opened to detect interference patterns
-    popupOpenCount++;
-    console.log('[Tab Keeper] Popup opened (count:', popupOpenCount + ')');
-    sendResponse({ status: 'tracked' });
-  }
-  
-  if (request.action === 'debug') {
-    // Debug command - return current state
-    chrome.storage.local.get(null).then((allData) => {
-      sendResponse({ state: allData, timerRunning: true, popupOpenCount: popupOpenCount });
-    });
-    return true;
-  }
 });
-
-// Auto-login function
-async function performAutoLogin(tab) {
-  if (!tab || !tab.id) {
-    console.log('[Tab Keeper] No valid tab for auto-login');
-    return;
-  }
-  
-  const config = await chrome.storage.local.get(['username', 'password']);
-  
-  if (!config.username || !config.password) {
-    console.log('[Tab Keeper] No credentials configured');
-    return;
-  }
-
-  console.log('[Tab Keeper] Auto-login for: ' + config.username);
-
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: autoLoginFunction,
-      args: [{ username: config.username, password: config.password }]
-    });
-    console.log('[Tab Keeper] Auto-login executed');
-  } catch (error) {
-    console.error('[Tab Keeper] Auto-login failed:', error);
-  }
-}
-
-// Injected function for auto-login
-function autoLoginFunction(creds) {
-  console.log('[Auto-login] Starting');
-  
-  const usernameSelectors = [
-    'input[type="email"]',
-    'input[type="text"]',
-    'input[name*="user"]',
-    'input[name*="email"]',
-    '#username', '#user', '#email',
-    '[name="username"]', '[name="email"]',
-    'ion-input[type="email"]',
-    'ion-input[type="text"]'
-  ];
-  
-  const passwordSelectors = [
-    'input[type="password"]',
-    'input[name*="pass"]',
-    '#password', '[name="password"]',
-    'ion-input[type="password"]'
-  ];
-  
-  const submitSelectors = [
-    'button[type="submit"]',
-    'input[type="submit"]',
-    '.login-button', '#login-btn',
-    'button.submit', '[type="submit"]',
-    'ion-button[name="button-login"]',
-    'ion-button[type="submit"]',
-    '[name="button-login"]',
-    'app-root ion-app ion-router-outlet app-login ion-content ion-card > ion-button',
-    'body > app-root > ion-app > ion-router-outlet > app-login > ion-content > ion-card > div:nth-child(4) > ion-button'
-  ];
-  
-  let usernameField = null;
-  let passwordField = null;
-  let submitButton = null;
-  
-  for (const selector of usernameSelectors) {
-    usernameField = document.querySelector(selector);
-    if (usernameField) break;
-  }
-  
-  for (const selector of passwordSelectors) {
-    passwordField = document.querySelector(selector);
-    if (passwordField) break;
-  }
-  
-  for (const selector of submitSelectors) {
-    submitButton = document.querySelector(selector);
-    if (submitButton) break;
-  }
-  
-  if (usernameField && passwordField) {
-    console.log('[Auto-login] Found fields');
-    
-    // Handle regular input fields
-    if (usernameField.tagName === 'INPUT') {
-      usernameField.value = creds.username;
-      usernameField.dispatchEvent(new Event('input', { bubbles: true }));
-      usernameField.dispatchEvent(new Event('change', { bubbles: true }));
-    } else if (usernameField.tagName === 'ION-INPUT') {
-      usernameField.value = creds.username;
-      usernameField.dispatchEvent(new CustomEvent('ionInput', { bubbles: true, detail: { value: creds.username } }));
-      usernameField.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    
-    if (passwordField.tagName === 'INPUT') {
-      passwordField.value = creds.password;
-      passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-      passwordField.dispatchEvent(new Event('change', { bubbles: true }));
-    } else if (passwordField.tagName === 'ION-INPUT') {
-      passwordField.value = creds.password;
-      passwordField.dispatchEvent(new CustomEvent('ionInput', { bubbles: true, detail: { value: creds.password } }));
-      passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    
-    console.log('[Auto-login] Fields filled, waiting for button to enable...');
-    
-    // Wait for button to become enabled
-    setTimeout(() => {
-      if (submitButton) {
-        if (submitButton.tagName === 'ION-BUTTON') {
-          console.log('[Auto-login] Ionic button detected');
-          
-          // Enable the button
-          submitButton.removeAttribute('disabled');
-          submitButton.removeAttribute('aria-disabled');
-          
-          // Click native button in shadow DOM
-          const nativeButton = submitButton.shadowRoot?.querySelector('button');
-          if (nativeButton) {
-            console.log('[Auto-login] Clicking native button in shadow DOM');
-            nativeButton.click();
-          } else {
-            console.log('[Auto-login] Clicking ion-button directly');
-            submitButton.click();
-          }
-        } else {
-          console.log('[Auto-login] Clicking submit button');
-          submitButton.click();
-        }
-      } else {
-        const form = usernameField.closest('form');
-        if (form) {
-          console.log('[Auto-login] Submitting form directly');
-          form.submit();
-        } else {
-          console.log('[Auto-login] No button found, trying Enter key');
-          passwordField.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-        }
-      }
-    }, 500);
-    
-  } else {
-    console.log('[Auto-login] Fields not found');
-    console.log('[Auto-login] Username field:', !!usernameField, 'Password field:', !!passwordField);
-  }
-}
