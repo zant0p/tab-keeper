@@ -1,17 +1,24 @@
 # Tab Keeper - Chrome Extension
 
+[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-v1.0.16-blue?style=flat-square)](https://chromewebstore.google.com/detail/tab-keeper/jlaiolmcjkaipeccefpmmliacjbmeadf)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![Enterprise Ready](https://img.shields.io/badge/Enterprise-Ready-green?style=flat-square)](ENTERPRISE_DEPLOYMENT.md)
+
 ## Latest Release: v1.0.16
 
-**Released:** June 17, 2026  
-**Chrome Web Store:** 🔄 Ready for Submission
+**📅 Released:** June 17, 2026  
+**🚀 Chrome Web Store:** 🔄 Ready for Submission
 
-### What's New in v1.0.16
-- 🏢 **Enterprise Support**: Chrome Admin Console policy configuration
-- 🎯 **Dual Tab Monitoring**: Primary + Secondary target URLs
-- 🔄 **Auto-Reopen**: Automatically reopens target tabs if closed
-- ⭐ **Smart Timer**: Only primary tab is "safe zone" - timer runs everywhere else
-- 💾 **Persistent Storage**: Enterprise policies survive cache clears & restarts
-- ✅ All previous v1.0.15 features retained
+### ✨ What's New in v1.0.16
+
+| Feature | Description |
+|---------|-------------|
+| 🏢 **Enterprise Support** | Chrome Admin Console policy configuration |
+| 🎯 **Dual Tab Monitoring** | Primary + Secondary target URLs |
+| 🔄 **Auto-Reopen** | Automatically reopens target tabs if closed |
+| ⭐ **Smart Timer** | Only primary tab is "safe zone" - timer runs everywhere else |
+| 💾 **Persistent Storage** | Enterprise policies survive cache clears & restarts |
+| ✅ **Backward Compatible** | All previous v1.0.15 features retained |
 
 ### Download
 - **Chrome Web Store:** https://chromewebstore.google.com/detail/tab-keeper/jlaiolmcjkaipeccefpmmliacjbmeadf
@@ -19,17 +26,55 @@
 
 ---
 
+## 📖 Overview
 
+**Tab Keeper** keeps your important tabs alive and accessible. Perfect for kiosks, monitoring stations, and enterprise deployments where specific web apps need to stay open and logged in.
 
-Keeps a designated tab active, automatically switches back after inactivity, and auto-logins when needed.
+### 🎯 How It Works
 
-## Features
+```
+┌─────────────────────────────────────────────────────────────┐
+│  ⭐ PRIMARY TAB (Safe Zone)                                 │
+│  └─ Timer stops here - your "home base"                    │
+│                                                             │
+│  🔹 SECONDARY TAB (Monitored)                               │
+│  └─ Auto-reopens if closed, but timer still runs           │
+│                                                             │
+│  ⏰ SMART TIMER (1-60 min)                                  │
+│  └─ Away from primary? Timer starts → Auto-switch back     │
+│                                                             │
+│  🔄 AUTO-REOPEN                                             │
+│  └─ Closed a target tab? We reopen it automatically        │
+│                                                             │
+│  🔐 AUTO-LOGIN                                              │
+│  └─ Credentials auto-filled on login pages                 │
+└─────────────────────────────────────────────────────────────┘
+```
 
-- **🎯 Target Tab Enforcement**: Monitors your active tab and switches back to the designated URL after 10 minutes (configurable)
-- **🔐 Auto-Login**: Automatically fills username/password and submits when login page is detected
-- **⏱️ Configurable Timer**: Set return timer from 1-60 minutes
-- **📊 Status Popup**: Quick view of current status and settings
-- **🧪 Test Mode**: Test auto-login functionality before deploying
+### 🏢 Enterprise Ready
+
+Built for Chrome Enterprise environments:
+- **Managed Guest Sessions**: Policies survive restarts & cache clears
+- **Admin Console Deployment**: Force-install + pre-configure
+- **Centralized Management**: Update all devices from one place
+- **No User Configuration Needed**: Set it once, deploy everywhere
+
+👉 See [ENTERPRISE_DEPLOYMENT.md](ENTERPRISE_DEPLOYMENT.md) for complete deployment guide.
+
+---
+
+## ✨ Features
+
+| Icon | Feature | Description |
+|------|---------|-------------|
+| ⭐ | **Primary Tab Safe Zone** | Timer only stops on primary URL - your anchor tab |
+| 🔹 | **Secondary Monitoring** | Optional 2nd tab monitored & auto-reopened |
+| 🔄 | **Auto-Reopen** | Target tabs reopen automatically if closed |
+| ⏰ | **Smart Timer** | Configurable 1-60 min inactivity timer |
+| 🔐 | **Auto-Login** | Credentials auto-filled on login detection |
+| 📊 | **Status Popup** | Real-time status & countdown display |
+| 🏢 | **Enterprise Policies** | Admin Console deployment & management |
+| 💾 | **Persistent Config** | Survives cache clears & restarts (managed) |
 
 ## Installation
 
@@ -72,14 +117,28 @@ See [ENTERPRISE_DEPLOYMENT.md](ENTERPRISE_DEPLOYMENT.md) for Chrome Admin Consol
 | **Username** | Auto-login username/email |
 | **Password** | Auto-login password |
 
-## How It Works
+## 🔄 How It Works
 
-1. **Monitor**: Extension watches which tab is active
-2. **Timer Start**: When you switch away from **primary tab**, timer begins (secondary tab is NOT a safe zone)
-3. **Auto-Switch**: When timer expires, extension switches back to **primary tab only**
-4. **Auto-Reopen**: If primary or secondary tab is closed, it's automatically reopened
-5. **Login Check**: Content script detects login pages and auto-fills credentials
-6. **Repeat**: Continues monitoring in background
+```mermaid
+graph TD
+    A[User on Primary Tab] -->|Switch away| B(Timer Starts)
+    B -->|10 min elapsed| C[Auto-Switch to Primary]
+    B -->|User active elsewhere| B
+    C --> A
+    D[Tab Closed] --> E{Is Target Tab?}
+    E -->|Yes| F[Auto-Reopen]
+    E -->|No| G[No Action]
+    F --> A
+```
+
+**Step-by-step:**
+
+1. **👀 Monitor**: Extension watches which tab is active in real-time
+2. **⏱️ Timer Start**: Switch away from **primary tab** → timer begins (secondary is NOT safe)
+3. **🔄 Auto-Switch**: Timer expires → extension switches back to **primary tab only**
+4. **♻️ Auto-Reopen**: Primary or secondary tab closed → automatically reopened
+5. **🔐 Login Check**: Login page detected → credentials auto-filled
+6. **🔁 Repeat**: Continuous monitoring in background service worker
 
 ## Security Notes
 
@@ -98,14 +157,18 @@ See [ENTERPRISE_DEPLOYMENT.md](ENTERPRISE_DEPLOYMENT.md) for Chrome Admin Consol
 
 ```
 tab-keeper/
-├── manifest.json      # Extension manifest (v3)
-├── background.js      # Service worker - tab monitoring & timer
-├── content.js         # Content script - login detection
-├── popup.html         # Quick status popup
-├── popup.js           # Popup logic
-├── options.html       # Settings page
-├── options.js         # Settings logic
-└── README.md          # This file
+## 📁 Project Structure
+
+```
+tab-keeper/
+├── 📄 manifest.json           # Extension manifest (v3) + managed schema
+├── ⚙️  background.js            # Service worker - tab monitoring & timer logic
+├── 🔐 content.js              # Content script - login detection & auto-fill
+├── 🎨 popup.html/js           # Quick status popup UI
+├── ⚙️  options.html/js          # Settings page + managed policy support
+├── 📊 managed_storage_schema.json  # Enterprise policy definitions
+├── 🏢 ENTERPRISE_DEPLOYMENT.md   # Admin Console deployment guide
+└── 📖 README.md               # This file
 ```
 
 ## Troubleshooting
@@ -135,25 +198,37 @@ tab-keeper/
 | `activeTab` | Access current tab for login detection |
 | `<all_urls>` | Inject login script on any site |
 
-## Version History
+## 📜 Version History
 
-### v1.0.16 (June 17, 2026) - Enterprise Release
-- 🏢 Added Chrome Enterprise managed storage support (`chrome.storage.managed`)
+### <kbd>v1.0.16</kbd> (June 17, 2026) - 🏢 **Enterprise Release**
+
+**Major Features:**
+- 🏢 Chrome Enterprise managed storage support (`chrome.storage.managed`)
 - 🎯 Dual tab monitoring: Primary + Secondary URLs
 - 🔄 Auto-reopen target tabs if closed
 - ⭐ Smart timer: Only primary tab stops the timer
 - 💾 Enterprise policies for Admin Console deployment
-- 📄 New: ENTERPRISE_DEPLOYMENT.md guide
+- 📄 New: `ENTERPRISE_DEPLOYMENT.md` guide
 - 🔧 Managed storage schema for policy configuration
 
-### v1.0.15 (June 2, 2026) - Production Release
-- ✅ Fixed auto-login to only trigger on target website
-- ✅ Updated contact email to zantop@protonmail.com
-- ✅ Removed experimental code for Chrome Web Store compliance
-- ✅ Fixed GitHub Actions build workflow
-- ✅ Improved timer reliability with Chrome Alarms API
+**Best for:** Kiosks, Managed Guest Sessions, Enterprise deployments
 
-### v1.0.5 (May 27, 2026)
+---
+
+### <kbd>v1.0.15</kbd> (June 2, 2026) - ✅ **Production Release**
+
+**Improvements:**
+- ✅ Fixed auto-login to only trigger on target website
+- 📧 Updated contact email to zantop@protonmail.com
+- 🧹 Removed experimental code for Chrome Web Store compliance
+- 🔧 Fixed GitHub Actions build workflow
+- ⏱️ Improved timer reliability with Chrome Alarms API
+
+**Status:** ✅ Live on Chrome Web Store
+
+---
+
+### <kbd>v1.0.5</kbd> (May 27, 2026)
 - Fixed timer persistence issues
 - Improved activity tracking
 
