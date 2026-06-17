@@ -507,13 +507,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 passwordField.dispatchEvent(new Event(evt, { bubbles: true }));
               });
               
-              if (form) {
-                form.submit();
-              } else {
-                // Try clicking submit button
-                const submitBtn = document.querySelector('button[type="submit"], input[type="submit"]');
-                if (submitBtn) submitBtn.click();
-              }
+              // Focus and blur to trigger validation
+              passwordField.focus();
+              setTimeout(() => {
+                passwordField.blur();
+                
+                // Try clicking submit button first (triggers JS validation)
+                const submitBtn = document.querySelector('button[type="submit"], input[type="submit"], button.submit, .submit-btn');
+                if (submitBtn) {
+                  submitBtn.click();
+                } else if (form) {
+                  // Fallback: submit the form directly
+                  form.submit();
+                }
+              }, 300);
             }
           },
           args: [config.username, config.password]
