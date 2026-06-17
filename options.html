@@ -4,164 +4,224 @@
   <meta charset="UTF-8">
   <title>Tab Keeper Settings</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
-      max-width: 600px;
-      margin: 40px auto;
-      padding: 20px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 15px;
       line-height: 1.6;
+      background: #f8fafc;
+      color: #1e293b;
     }
     h1 {
-      color: #333;
-      border-bottom: 2px solid #007bff;
-      padding-bottom: 10px;
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    .subtitle {
+      color: #64748b;
+      margin-bottom: 32px;
+      font-size: 15px;
     }
     .section {
       margin: 24px 0;
-      padding: 16px;
-      background: #f8f9fa;
-      border-radius: 8px;
+      padding: 24px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: 1px solid #e2e8f0;
     }
     .section h2 {
       margin-top: 0;
-      font-size: 16px;
-      color: #495057;
+      font-size: 18px;
+      font-weight: 600;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     label {
       display: block;
-      margin: 12px 0 6px 0;
+      margin: 16px 0 8px 0;
       font-weight: 500;
-      color: #495057;
+      color: #334155;
+      font-size: 14px;
     }
     input[type="text"],
     input[type="password"],
     input[type="url"],
     input[type="number"] {
       width: 100%;
-      padding: 10px;
-      border: 1px solid #ced4da;
-      border-radius: 4px;
-      font-size: 14px;
-      box-sizing: border-box;
+      padding: 12px 16px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 15px;
+      transition: all 0.2s ease;
+      background: #fff;
     }
     input[type="text"]:focus,
     input[type="password"]:focus,
-    input[type="url"]:focus {
-      border-color: #007bff;
+    input[type="url"]:focus,
+    input[type="number"]:focus {
+      border-color: #667eea;
       outline: none;
-      box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    input::placeholder {
+      color: #94a3b8;
     }
     .checkbox-label {
       display: flex;
       align-items: center;
-      margin: 12px 0;
+      padding: 12px 16px;
+      background: #f1f5f9;
+      border-radius: 10px;
+      margin: 16px 0;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .checkbox-label:hover {
+      background: #e2e8f0;
     }
     .checkbox-label input[type="checkbox"] {
-      margin-right: 8px;
-      width: 18px;
-      height: 18px;
+      margin-right: 12px;
+      width: 20px;
+      height: 20px;
+      accent-color: #667eea;
     }
     button {
-      padding: 12px 24px;
+      padding: 14px 28px;
       border: none;
-      border-radius: 4px;
+      border-radius: 10px;
       cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      margin-right: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
     }
     .btn-save {
-      background: #28a745;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
     }
     .btn-save:hover {
-      background: #218838;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
     }
     .btn-test {
-      background: #007bff;
+      background: #3b82f6;
       color: white;
     }
     .btn-test:hover {
-      background: #0056b3;
+      background: #2563eb;
+      transform: translateY(-1px);
     }
     .btn-clear {
-      background: #dc3545;
+      background: #ef4444;
       color: white;
     }
     .btn-clear:hover {
-      background: #c82333;
+      background: #dc2626;
+      transform: translateY(-1px);
     }
     .message {
-      padding: 12px;
-      border-radius: 4px;
-      margin: 12px 0;
+      padding: 16px;
+      border-radius: 10px;
+      margin: 16px 0;
       display: none;
+      font-size: 14px;
     }
     .message.success {
-      background: #d4edda;
-      color: #155724;
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
       display: block;
     }
     .message.error {
-      background: #f8d7da;
-      color: #721c24;
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
       display: block;
     }
     .hint {
-      font-size: 12px;
-      color: #6c757d;
-      margin-top: 4px;
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 6px;
+      line-height: 1.5;
     }
     .credentials-warning {
-      background: #fff3cd;
-      border: 1px solid #ffc107;
-      padding: 12px;
-      border-radius: 4px;
-      font-size: 13px;
-      color: #856404;
-      margin: 12px 0;
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      padding: 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      color: #92400e;
+      margin: 16px 0;
+    }
+    .credentials-warning strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    .divider {
+      height: 1px;
+      background: #e2e8f0;
+      margin: 24px 0;
     }
   </style>
 </head>
 <body>
-  <h1>Tab Keeper Settings</h1>
-  
+  <h1>🔖 Tab Keeper</h1>
+  <div class="subtitle">Keep your important tabs alive and monitor activity</div>
+
   <div id="message" class="message"></div>
 
   <div class="section">
-    <h2>Target Configuration</h2>
+    <h2>📌 Target Configuration</h2>
     
-    <label for="enabled">
+    <label for="enabled" class="checkbox-label">
       <input type="checkbox" id="enabled">
-      Enable Tab Keeper
+      <span>Enable Tab Keeper</span>
     </label>
     
-    <label for="primaryUrl">Primary Target URL ⭐</label>
+    <label for="primaryUrl">⭐ Primary Target URL</label>
     <input type="url" id="primaryUrl" placeholder="https://example.com/dashboard">
-    <div class="hint">The extension will always switch back to this tab after inactivity. This is the only "safe zone".</div>
+    <div class="hint">The extension will always switch back to this tab after inactivity. This is the only "safe zone" where the timer stops.</div>
     
     <label for="secondaryUrl">Secondary Target URL</label>
     <input type="url" id="secondaryUrl" placeholder="https://example.com/reports">
-    <div class="hint">Optional second tab to monitor and auto-reopen if closed. Timer will still run when on this tab.</div>
+    <div class="hint">Optional second tab to monitor and auto-reopen if closed. The timer will still run when viewing this tab.</div>
     
-    <label for="timerMinutes">Return Timer (minutes)</label>
+    <label for="timerMinutes">⏱️ Return Timer (minutes)</label>
     <input type="number" id="timerMinutes" min="1" max="60" value="10">
     <div class="hint">How long to wait before switching back to primary tab (1-60 minutes)</div>
     
-    <div id="managedNotice" class="message" style="display:none; background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9;">
+    <div id="managedNotice" class="message" style="display:none; background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd;">
       <strong>🏢 Managed by Enterprise Policy</strong><br>
       Some settings are configured by your organization and cannot be changed locally.
     </div>
   </div>
 
   <div class="section">
-    <h2>Auto-Login Credentials</h2>
+    <h2>🔐 Auto-Login Credentials</h2>
+    <div class="hint" style="margin-bottom: 16px;">Credentials will only be auto-filled on the <strong>primary target URL</strong>.</div>
     
     <div class="credentials-warning">
-      <strong>Security Note:</strong> Credentials are stored locally in Chrome's storage. 
-      They are not synced or transmitted anywhere. For maximum security, use a dedicated 
-      browser profile for this extension.
+      <strong>Security Note:</strong>
+      Credentials are stored locally in Chrome's storage. They are not synced or transmitted anywhere. For maximum security, use a dedicated browser profile for this extension.
     </div>
     
     <label for="username">Username / Email</label>
@@ -170,20 +230,14 @@
     <label for="password">Password</label>
     <input type="password" id="password" placeholder="Your password">
     
-    <div class="hint" style="margin-top: 12px;">
-      These credentials will be auto-filled when the login page is detected
+    <div class="btn-group">
+      <button id="testLogin" class="btn-test">🧪 Test Auto-Login</button>
+      <button id="clearCredentials" class="btn-clear">🗑️ Clear Credentials</button>
     </div>
   </div>
 
   <div class="section">
-    <h2>Test and Actions</h2>
-    
-    <button id="testLogin" class="btn-test">Test Auto-Login</button>
-    <button id="clearCredentials" class="btn-clear">Clear Credentials</button>
-  </div>
-
-  <div class="section">
-    <button id="save" class="btn-save">Save Settings</button>
+    <button id="save" class="btn-save">💾 Save Settings</button>
   </div>
 
   <script src="options.js"></script>

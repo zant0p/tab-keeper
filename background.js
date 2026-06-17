@@ -453,4 +453,75 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'popupOpened') {
     sendResponse({ status: 'ok' });
   }
+  
+  // Get primary URL only (for auto-login content script)
+  if (message.action === 'getTargetUrl') {
+    getConfig(['primaryUrl']).then((config) => {
+      sendResponse({ targetUrl: config.primaryUrl });
+    });
+    return true;
+  }
+  
+  // Handle auto-login request - only for primary URL
+  if (message.action === 'loginRequired') {
+    getConfig(['primaryUrl', 'username', 'password']).then(async (config) => {
+      if (!config.primaryUrl || !config.username || !config.password) {
+        sendResponse({ success: false, reason: 'missing credentials' });
+        return;
+      }
+      
+      // Verify the sender tab is on the primary URL
+      const senderUrl = sender.tab?.url;
+      const isPrimaryTab = senderUrl && (
+        senderUrl === config.primaryUrl ||
+        senderUrl.startsWith(config.primaryUrl) ||
+        senderUrl.startsWith(new URL(config.primaryUrl).origin)
+      );
+      
+      if (!isPrimaryTab) {
+        console.log('[Tab Keeper] Auto-login rejected - not on primary URL');
+        sendResponse({ success: false, reason: 'not primary url' });
+        return;
+      }
+      
+      console.log('[Tab Keeper] Auto-login approved for primary URL');
+      sendResponse({ success: true });
+      
+      // Inject login script into the tab
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: sender.tab.id },
+          func: (username, password) => {
+            // Find and fill login form
+            const usernameField = document.querySelector('input[name*="user"], input[name*="email"], #username, #email, [name="username"], input[type="email"]');
+            const passwordField = document.querySelector('input[type="password"]');
+            const form = document.querySelector('form');
+            
+            if (usernameField && passwordField) {
+              usernameField.value = username;
+              passwordField.value = password;
+              
+              // Trigger input events for React/modern frameworks
+              ['input', 'change'].forEach(evt => {
+                usernameField.dispatchEvent(new Event(evt, { bubbles: true }));
+                passwordField.dispatchEvent(new Event(evt, { bubbles: true }));
+              });
+              
+              if (form) {
+                form.submit();
+              } else {
+                // Try clicking submit button
+                const submitBtn = document.querySelector('button[type="submit"], input[type="submit"]');
+                if (submitBtn) submitBtn.click();
+              }
+            }
+          },
+          args: [config.username, config.password]
+        });
+      } catch (error) {
+        console.error('[Tab Keeper] Auto-login injection failed:', error);
+      }
+    });
+    return true;
+  }
 });
