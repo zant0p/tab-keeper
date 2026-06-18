@@ -1,6 +1,6 @@
 # Tab Keeper - Documentation
 
-**Current Version:** v1.0.15 (June 2, 2026)  
+**Current Version:** v1.0.17 (June 18, 2026)  
 **Contact:** zantop@protonmail.com
 
 
@@ -17,6 +17,28 @@
 - **[Privacy Policy](privacy.html)** - Complete privacy policy (required for Chrome Web Store)
 - **[GitHub Repository](https://github.com/zant0p/tab-keeper)** - Source code
 - **[Latest Release](https://github.com/zant0p/tab-keeper/releases/latest)** - Download extension
+
+---
+
+## What's New in v1.0.17
+
+**🎨 Modern UI/UX Redesign**
+- Beautiful gradient purple theme with glassmorphism effects
+- Redesigned popup with status cards and improved visual hierarchy
+- Clean, modern options page with card-based layout
+- New app icon with gradient design and tab/bookmark motif
+
+**🔐 Auto-Login Improvements**
+- Auto-login now works **only on primary target URL** (not secondary)
+- Fixed submit button clicking (properly triggers JavaScript validation)
+- Better compatibility with React, Angular, and modern web frameworks
+- Enhanced security verification before credential injection
+
+**📌 Enterprise Features**
+- Chrome Admin Console managed storage support
+- Primary + Secondary URL monitoring
+- Auto-reopen tabs if closed
+- Persistent configuration across Managed Guest Sessions
 
 ---
 
@@ -72,5 +94,5 @@ For questions, issues, or feature requests:
 
 ---
 
-**Last Updated:** June 2, 2026  
-**Current Version:** 1.0.15
+**Last Updated:** June 18, 2026  
+**Current Version:** 1.0.17

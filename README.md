@@ -1,15 +1,33 @@
 # Tab Keeper - Chrome Extension
 
-[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-v1.0.16-blue?style=flat-square)](https://chromewebstore.google.com/detail/tab-keeper/jlaiolmcjkaipeccefpmmliacjbmeadf)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-v1.0.17-blue?style=flat-square)](https://chromewebstore.google.com/detail/tab-keeper/jlaiolmcjkaipeccefpmmliacjbmeadf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Enterprise Ready](https://img.shields.io/badge/Enterprise-Ready-green?style=flat-square)](ENTERPRISE_DEPLOYMENT.md)
 
-## Latest Release: v1.0.16
+## Latest Release: v1.0.17
 
-**📅 Released:** June 17, 2026  
+**📅 Released:** June 18, 2026  
 **🚀 Chrome Web Store:** 🔄 Ready for Submission
 
-### ✨ What's New in v1.0.16
+### ✨ What's New in v1.0.17
+
+| Feature | Description |
+|---------|-------------|
+| 🎨 **Modern UI/UX** | Beautiful gradient purple theme with glassmorphism effects |
+| 🖼️ **New Logo** | Fresh gradient design with tab/bookmark motif |
+| 🔐 **Auto-Login Fix** | Properly clicks submit button (triggers JS validation) |
+| 🎯 **Primary-Only Login** | Auto-login only on primary URL, never secondary |
+| 💫 **Improved UX** | Redesigned popup and options page with modern styling |
+
+### Download
+- **Chrome Web Store:** https://chromewebstore.google.com/detail/tab-keeper/jlaiolmcjkaipeccefpmmliacjbmeadf
+- **GitHub Releases:** https://github.com/zant0p/tab-keeper/releases/latest
+
+---
+
+## Previous: v1.0.16 - Enterprise Release
+
+**📅 Released:** June 17, 2026
 
 | Feature | Description |
 |---------|-------------|
@@ -199,6 +217,21 @@ tab-keeper/
 | `<all_urls>` | Inject login script on any site |
 
 ## 📜 Version History
+
+### <kbd>v1.0.17</kbd> (June 18, 2026) - 🎨 **UI/UX + Auto-Login Fix**
+
+**Major Improvements:**
+- 🎨 Complete UI/UX redesign with modern gradient purple theme
+- 🖼️ New app icon with gradient design and tab/bookmark motif
+- ✨ Glassmorphism effects in popup and options page
+- 🔐 Auto-login fix: Properly clicks submit button (triggers JS validation)
+- 🎯 Auto-login only on primary URL (never secondary)
+- 💫 Better React/Angular compatibility with focus/blur events
+- 📱 Improved visual hierarchy and modern styling throughout
+
+**Best for:** All users - improved UX and reliable auto-login
+
+---
 
 ### <kbd>v1.0.16</kbd> (June 17, 2026) - 🏢 **Enterprise Release**
 
