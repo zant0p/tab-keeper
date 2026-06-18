@@ -122,6 +122,8 @@ function checkLoginStatus() {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'checkLogin') {
+    console.log('Tab Keeper Content: Manual login check triggered');
+    checkAttempts = 0; // Reset counter for fresh checks
     checkLoginStatus();
     sendResponse({ status: 'checked' });
   }
@@ -133,6 +135,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   return true;
+});
+
+// Listen for visibility changes - recheck when tab becomes visible
+let hiddenTimeout = null;
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    console.log('Tab Keeper Content: Tab became visible');
+    // Wait a moment for page to stabilize, then check
+    if (hiddenTimeout) clearTimeout(hiddenTimeout);
+    hiddenTimeout = setTimeout(() => {
+      if (!loginAttempted) {
+        checkAttempts = 0;
+        checkLoginStatus();
+      }
+    }, 1000);
+  }
 });
 
 if (document.readyState === 'loading') {

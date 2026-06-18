@@ -260,6 +260,20 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
 // Monitor tab changes
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   console.log('[Tab Keeper] Tab activated: ' + activeInfo.tabId);
+  
+  // If this is the primary tab, trigger a login check
+  const config = await getConfig(['primaryUrl', 'username', 'password', 'enabled']);
+  if (config.enabled && config.primaryUrl && config.username && config.password) {
+    if (activeInfo.tabId === primaryTabId) {
+      console.log('[Tab Keeper] Primary tab activated - will check login status');
+      setTimeout(() => {
+        chrome.tabs.sendMessage(activeInfo.tabId, { action: 'checkLogin' }).catch(e => {
+          console.log('[Tab Keeper] Could not send login check:', e.message);
+        });
+      }, 1000);
+    }
+  }
+  
   await handleTabSwitch(activeInfo.tabId);
 });
 
@@ -431,6 +445,34 @@ async function switchBackToPrimary() {
   }
 }
 
+// Monitor tab updates - trigger auto-login check when page loads
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  const config = await getConfig(['primaryUrl', 'username', 'password', 'enabled']);
+  
+  if (!config.enabled || !config.primaryUrl || !config.username || !config.password) {
+    return;
+  }
+  
+  // Check if this is the primary tab and page just completed loading
+  if (changeInfo.status === 'complete' && tabId === primaryTabId) {
+    const isPrimaryUrl = config.primaryUrl && (
+      tab.url === config.primaryUrl ||
+      tab.url.startsWith(config.primaryUrl) ||
+      tab.url.startsWith(new URL(config.primaryUrl).origin)
+    );
+    
+    if (isPrimaryUrl) {
+      console.log('[Tab Keeper] Primary tab loaded - triggering login check');
+      // Wait a bit for page to fully render, then check for login
+      setTimeout(() => {
+        chrome.tabs.sendMessage(tabId, { action: 'checkLogin' }).catch(e => {
+          console.log('[Tab Keeper] Could not send login check:', e.message);
+        });
+      }, 1500); // 1.5 second delay for page rendering
+    }
+  }
+});
+
 // Message handler
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('[Tab Keeper] Message received:', message.action);
@@ -498,45 +540,64 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('[Tab Keeper] Auto-login approved for primary URL');
       sendResponse({ success: true });
       
-      // Inject login script into the tab
+      // Wait for tab to be ready, then inject login script
       try {
+        // First, ensure the tab is loaded
+        await chrome.tabs.sendMessage(sender.tab.id, { action: 'ping' }).catch(async () => {
+          // Tab not ready yet, wait and retry
+          await new Promise(resolve => setTimeout(resolve, 500));
+        });
+        
         await chrome.scripting.executeScript({
           target: { tabId: sender.tab.id },
           func: (username, password) => {
+            console.log('[Auto-Login] Starting login process...');
+            
             // Find and fill login form
             const usernameField = document.querySelector('input[name*="user"], input[name*="email"], #username, #email, [name="username"], input[type="email"]');
             const passwordField = document.querySelector('input[type="password"]');
             const form = document.querySelector('form');
             
-            if (usernameField && passwordField) {
-              usernameField.value = username;
-              passwordField.value = password;
-              
-              // Trigger input events for React/modern frameworks
-              ['input', 'change'].forEach(evt => {
-                usernameField.dispatchEvent(new Event(evt, { bubbles: true }));
-                passwordField.dispatchEvent(new Event(evt, { bubbles: true }));
-              });
-              
-              // Focus and blur to trigger validation
-              passwordField.focus();
-              setTimeout(() => {
-                passwordField.blur();
-                
-                // Try clicking submit button first (triggers JS validation)
-                const submitBtn = document.querySelector('button[type="submit"], input[type="submit"], button.submit, .submit-btn');
-                if (submitBtn) {
-                  submitBtn.click();
-                } else if (form) {
-                  // Fallback: submit the form directly
-                  form.submit();
-                }
-              }, 300);
+            if (!usernameField || !passwordField) {
+              console.log('[Auto-Login] Login fields not found');
+              return;
             }
+            
+            console.log('[Auto-Login] Found login fields, filling credentials...');
+            usernameField.value = username;
+            passwordField.value = password;
+            
+            // Trigger input events for React/modern frameworks
+            ['input', 'change'].forEach(evt => {
+              usernameField.dispatchEvent(new Event(evt, { bubbles: true }));
+              passwordField.dispatchEvent(new Event(evt, { bubbles: true }));
+            });
+            
+            // Focus and blur to trigger validation
+            passwordField.focus();
+            setTimeout(() => {
+              passwordField.blur();
+              
+              // Try clicking submit button first (triggers JS validation)
+              const submitBtn = document.querySelector('button[type="submit"], input[type="submit"], button.submit, .submit-btn');
+              if (submitBtn) {
+                console.log('[Auto-Login] Clicking submit button');
+                submitBtn.click();
+              } else if (form) {
+                // Fallback: submit the form directly
+                console.log('[Auto-Login] Submitting form directly');
+                form.submit();
+              } else {
+                console.log('[Auto-Login] No submit button or form found');
+              }
+            }, 300);
           },
           args: [config.username, config.password]
         });
+        console.log('[Tab Keeper] Login script injected successfully');
       } catch (error) {
+        console.error('[Tab Keeper] Auto-login injection failed:', error);
+      }
         console.error('[Tab Keeper] Auto-login injection failed:', error);
       }
     });
