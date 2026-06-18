@@ -76,17 +76,17 @@ chrome.runtime.onStartup.addListener(async () => {
 async function ensureTabsExist(config) {
   const allTabs = await chrome.tabs.query({});
   
-  // Check primary tab
-  const primaryExists = allTabs.some(tab => isTargetUrl(tab.url, config.primaryUrl));
+  // Check primary tab - use exact matching
+  const primaryExists = allTabs.some(tab => isTargetUrl(tab.url, config.primaryUrl, true));
   if (!primaryExists && config.primaryUrl) {
     console.log('[Tab Keeper] Primary tab not found - creating it');
     const newTab = await chrome.tabs.create({ url: config.primaryUrl, active: false });
     primaryTabId = newTab.id;
   }
   
-  // Check secondary tab (if configured)
+  // Check secondary tab (if configured) - loose matching ok for secondary
   if (config.secondaryUrl) {
-    const secondaryExists = allTabs.some(tab => isTargetUrl(tab.url, config.secondaryUrl));
+    const secondaryExists = allTabs.some(tab => isTargetUrl(tab.url, config.secondaryUrl, false));
     if (!secondaryExists) {
       console.log('[Tab Keeper] Secondary tab not found - creating it');
       const newTab = await chrome.tabs.create({ url: config.secondaryUrl, active: false });
@@ -223,20 +223,35 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
     return;
   }
   
-  // Check if closed tab was a target tab
+  // Check if closed tab was a target tab (use exact match for primary)
   if (tabId === primaryTabId || tabId === secondaryTabId) {
     console.log('[Tab Keeper] Target tab closed:', tabId);
     
     // Reopen after a short delay
     setTimeout(async () => {
       if (tabId === primaryTabId && config.primaryUrl) {
-        console.log('[Tab Keeper] Reopening primary tab');
-        const newTab = await chrome.tabs.create({ url: config.primaryUrl, active: false });
-        primaryTabId = newTab.id;
+        // Double-check: make sure no other tab with this URL exists before reopening
+        const allTabs = await chrome.tabs.query({});
+        const primaryExists = allTabs.some(tab => isTargetUrl(tab.url, config.primaryUrl, true));
+        
+        if (!primaryExists) {
+          console.log('[Tab Keeper] Reopening primary tab');
+          const newTab = await chrome.tabs.create({ url: config.primaryUrl, active: false });
+          primaryTabId = newTab.id;
+        } else {
+          console.log('[Tab Keeper] Primary tab already exists - skipping reopen');
+        }
       } else if (tabId === secondaryTabId && config.secondaryUrl) {
-        console.log('[Tab Keeper] Reopening secondary tab');
-        const newTab = await chrome.tabs.create({ url: config.secondaryUrl, active: false });
-        secondaryTabId = newTab.id;
+        const allTabs = await chrome.tabs.query({});
+        const secondaryExists = allTabs.some(tab => isTargetUrl(tab.url, config.secondaryUrl, false));
+        
+        if (!secondaryExists) {
+          console.log('[Tab Keeper] Reopening secondary tab');
+          const newTab = await chrome.tabs.create({ url: config.secondaryUrl, active: false });
+          secondaryTabId = newTab.id;
+        } else {
+          console.log('[Tab Keeper] Secondary tab already exists - skipping reopen');
+        }
       }
     }, 1000);
   }
@@ -271,9 +286,21 @@ function getBaseUrl(url) {
   }
 }
 
-// Check if a tab URL matches the target
-function isTargetUrl(tabUrl, targetUrl) {
+// Check if a tab URL matches the target (EXACT match for primary tabs)
+function isTargetUrl(tabUrl, targetUrl, exactMatch = false) {
   if (!tabUrl || !targetUrl) return false;
+  
+  // Exact match (used for primary tab - prevents duplicates)
+  if (exactMatch) {
+    if (tabUrl === targetUrl) return true;
+    if (tabUrl.startsWith(targetUrl)) return true;
+    // Also match if base paths are identical
+    const tabBase = getBaseUrl(tabUrl);
+    const targetBase = getBaseUrl(targetUrl);
+    return tabBase === targetBase;
+  }
+  
+  // Loose match (used for secondary tab monitoring)
   if (tabUrl === targetUrl) return true;
   if (tabUrl.startsWith(targetUrl)) return true;
   
@@ -314,9 +341,9 @@ async function handleTabSwitch(newTabId) {
     const tab = await chrome.tabs.get(newTabId);
     const tabUrl = tab.url || '';
     
-    // Check if this is the primary tab (the only safe zone)
-    const isPrimaryTab = config.primaryUrl && isTargetUrl(tabUrl, config.primaryUrl);
-    const isSecondaryTab = config.secondaryUrl && isTargetUrl(tabUrl, config.secondaryUrl);
+    // Check if this is the primary tab (the only safe zone) - use EXACT match
+    const isPrimaryTab = config.primaryUrl && isTargetUrl(tabUrl, config.primaryUrl, true);
+    const isSecondaryTab = config.secondaryUrl && isTargetUrl(tabUrl, config.secondaryUrl, false);
     
     console.log('[Tab Keeper] Current tab URL:', tabUrl.substring(0, 80));
     console.log('[Tab Keeper] Is primary tab:', isPrimaryTab);
@@ -359,7 +386,7 @@ async function switchBackToPrimary() {
     let existingTab = null;
     let matchReason = '';
     
-    // Strategy 1: Exact URL match
+    // Strategy 1: Exact URL match (primary tab only - prevents duplicates)
     existingTab = allTabs.find(tab => tab.url === config.primaryUrl);
     if (existingTab) matchReason = 'exact URL match';
     
@@ -369,29 +396,13 @@ async function switchBackToPrimary() {
       if (existingTab) matchReason = 'URL starts with target';
     }
     
-    // Strategy 3: Match by base URL
+    // Strategy 3: Match by base URL (still exact path matching)
     if (!existingTab) {
-      existingTab = allTabs.find(tab => tab.url && isTargetUrl(tab.url, config.primaryUrl));
+      existingTab = allTabs.find(tab => tab.url && isTargetUrl(tab.url, config.primaryUrl, true));
       if (existingTab) matchReason = 'base URL match';
     }
     
-    // Strategy 4: Match by domain only
-    if (!existingTab) {
-      try {
-        const targetDomain = new URL(config.primaryUrl).hostname;
-        existingTab = allTabs.find(tab => {
-          if (!tab.url) return false;
-          try {
-            return new URL(tab.url).hostname === targetDomain;
-          } catch (e) {
-            return false;
-          }
-        });
-        if (existingTab) matchReason = 'domain match';
-      } catch (e) {
-        console.log('[Tab Keeper] URL parsing failed:', e);
-      }
-    }
+    // DO NOT fall back to domain-only matching for primary tabs (prevents duplicates)
     
     if (existingTab) {
       console.log('[Tab Keeper] FOUND existing tab:', existingTab.id);
