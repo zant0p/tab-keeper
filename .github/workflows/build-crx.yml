@@ -64,9 +64,9 @@ jobs:
       - name: Generate PEM key (if not exists)
         id: generate_key
         run: |
-          if [ ! -f extension.pem ]; then
+          if [ ! -f extension-${{ matrix.variant }}.pem ]; then
             echo "Generating new PEM key..."
-            openssl genrsa -out extension.pem 2048
+            openssl genrsa -out extension-${{ matrix.variant }}.pem 2048
             echo "::warning::New PEM key generated. Download and save it securely! This key is required for future updates."
             echo "key_generated=true" >> $GITHUB_OUTPUT
           else
@@ -85,8 +85,8 @@ jobs:
       - name: Calculate extension ID from PEM
         id: ext_id
         run: |
-          if [ -f extension.pem ]; then
-            EXT_ID=$(openssl rsa -in extension.pem -pubout -outform DER 2>/dev/null | \
+          if [ -f extension-${{ matrix.variant }}.pem ]; then
+            EXT_ID=$(openssl rsa -in extension-${{ matrix.variant }}.pem -pubout -outform DER 2>/dev/null | \
               openssl dgst -sha256 -binary | \
               tail -c 16 | \
               base32 | \
