@@ -76,19 +76,25 @@ jobs:
 
       - name: Build signed CRX
         run: |
-          PEM_FILE="extension-${{ matrix.variant }}.pem"
-          CRX_FILE="tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.crx"
-          ZIP_FILE="tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.zip"
+          set -e
+          PEM_FILE="${{ github.workspace }}/extension-${{ matrix.variant }}.pem"
+          CRX_FILE="${{ github.workspace }}/tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.crx"
+          ZIP_FILE="${{ github.workspace }}/tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.zip"
+          
+          echo "Working directory: $(pwd)"
+          echo "PEM file: $PEM_FILE"
+          ls -la *.pem || echo "No PEM files found"
           
           # First create ZIP
           zip -r "$ZIP_FILE" manifest.json background.js content.js popup.html popup.js options.html options.js icons/ -x "*.git*" "*.pem"
           
-          
-          # Pack to CRX using chromium
-          google-chrome --pack-extension=. --pack-extension-key="$PEM_FILE"
+          # Pack to CRX using google-chrome
+          google-chrome --pack-extension="${{ github.workspace }}" --pack-extension-key="$PEM_FILE"
           
           # Move output to expected name
-          mv chrome.crx "$CRX_FILE"
+          mv "${{ github.workspace }}/chrome.crx" "$CRX_FILE"
+          
+          echo "Built $CRX_FILE successfully"
 
       - name: Calculate extension ID from PEM
         id: ext_id
