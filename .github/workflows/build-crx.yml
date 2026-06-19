@@ -75,12 +75,22 @@ jobs:
           fi
 
       - name: Build signed CRX
-        uses: cardinalby/webext-buildtools-chrome-extension-action@v1
-        with:
-          inputFolder: .
-          zipFilePath: tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.zip
-          crxFilePath: tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.crx
-          privateKeyFile: extension-${{ matrix.variant }}.pem
+        run: |
+          PEM_FILE="extension-${{ matrix.variant }}.pem"
+          CRX_FILE="tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.crx"
+          ZIP_FILE="tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.zip"
+          
+          # First create ZIP
+          zip -r "$ZIP_FILE" manifest.json background.js content.js popup.html popup.js options.html options.js icons/ -x "*.git*" "*.pem"
+          
+          # Install chromium for CRX packing
+          apt-get update -qq u0026u0026 apt-get install -y -qq chromium-browser
+          
+          # Pack to CRX using chromium
+          chromium-browser --pack-extension=. --pack-extension-key="$PEM_FILE"
+          
+          # Move output to expected name
+          mv chrome.crx "$CRX_FILE"
 
       - name: Calculate extension ID from PEM
         id: ext_id
