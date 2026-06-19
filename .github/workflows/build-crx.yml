@@ -82,22 +82,11 @@ jobs:
       - name: Install crx3
         run: npm install -g crx3
       
-      - name: Build signed CRX
+      - name: Create ZIP packages
         run: |
-          set -e
-          PEM_FILE="extension-${{ matrix.variant }}.pem"
-          CRX_FILE="tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.crx"
           ZIP_FILE="tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.zip"
-          
-          echo "PEM file exists: $(test -f $PEM_FILE u0026u0026 echo YES || echo NO)"
-          
-          # First create ZIP
           zip -r "$ZIP_FILE" manifest.json background.js content.js popup.html popup.js options.html options.js icons/ -x "*.git*" "*.pem"
-          
-          # Pack to CRX using crx3
-          crx3 "$ZIP_FILE" --key "$PEM_FILE" --output "$CRX_FILE"
-          
-          echo "Built $CRX_FILE successfully"
+          echo "Created $ZIP_FILE"
 
       - name: Calculate extension ID from PEM
         id: ext_id
