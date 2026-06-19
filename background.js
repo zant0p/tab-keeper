@@ -136,7 +136,7 @@ async function startInactivityTimer() {
   
   // Create new alarm (in seconds)
   chrome.alarms.create('switchBack', {
-    delayInMinutes: Math.ceil(seconds / 60)
+    delayInMinutes: seconds / 60
   });
   
   // Store state for popup
