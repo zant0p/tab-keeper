@@ -82,15 +82,22 @@ chrome.runtime.onStartup.addListener(async () => {
 async function ensureTabsExist() {
   const allTabs = await chrome.tabs.query({});
   
-  // Find ALL existing primary tabs (could be duplicates from bug)
-  const allPrimaryTabs = allTabs.filter(tab => tab.url === PRIMARY_URL || tab.url?.startsWith(PRIMARY_URL));
+  // Match by domain/origin for primary (handles URL changes after login)
+  const primaryOrigin = 'https://10.1.129.207';
+  const allPrimaryTabs = allTabs.filter(tab => {
+    if (!tab.url) return false;
+    try {
+      const tabOrigin = new URL(tab.url).origin;
+      return tabOrigin === primaryOrigin;
+    } catch (e) {
+      return false;
+    }
+  });
   
   if (allPrimaryTabs.length > 0) {
     console.log('[Tab Keeper] Primary tab(s) already exist:', allPrimaryTabs.length);
-    // Use the first one as the primary
     primaryTabId = allPrimaryTabs[0].id;
     
-    // If there are duplicates, close them (except the first)
     if (allPrimaryTabs.length > 1) {
       console.log('[Tab Keeper] Closing duplicate primary tabs...');
       for (let i = 1; i < allPrimaryTabs.length; i++) {
@@ -103,14 +110,22 @@ async function ensureTabsExist() {
     primaryTabId = newTab.id;
   }
   
-  // Find ALL existing secondary tabs
-  const allSecondaryTabs = allTabs.filter(tab => tab.url === SECONDARY_URL || tab.url?.startsWith(SECONDARY_URL));
+  // Match by domain for secondary
+  const secondaryOrigin = 'https://login.pointclickcare.com';
+  const allSecondaryTabs = allTabs.filter(tab => {
+    if (!tab.url) return false;
+    try {
+      const tabOrigin = new URL(tab.url).origin;
+      return tabOrigin === secondaryOrigin;
+    } catch (e) {
+      return false;
+    }
+  });
   
   if (allSecondaryTabs.length > 0) {
     console.log('[Tab Keeper] Secondary tab(s) already exist:', allSecondaryTabs.length);
     secondaryTabId = allSecondaryTabs[0].id;
     
-    // Close duplicates
     if (allSecondaryTabs.length > 1) {
       console.log('[Tab Keeper] Closing duplicate secondary tabs...');
       for (let i = 1; i < allSecondaryTabs.length; i++) {
@@ -349,10 +364,19 @@ async function switchBackToPrimary() {
   try {
     const allTabs = await chrome.tabs.query({});
     
-    let existingTab = allTabs.find(tab => tab.url === PRIMARY_URL || tab.url?.startsWith(PRIMARY_URL));
+    // Match by origin (handles URL changes after login/navigation)
+    const primaryOrigin = 'https://10.1.129.207';
+    let existingTab = allTabs.find(tab => {
+      if (!tab.url) return false;
+      try {
+        return new URL(tab.url).origin === primaryOrigin;
+      } catch (e) {
+        return false;
+      }
+    });
     
     if (existingTab) {
-      console.log('[Tab Keeper] FOUND existing tab:', existingTab.id);
+      console.log('[Tab Keeper] FOUND existing primary tab:', existingTab.id, 'URL:', existingTab.url);
       
       await chrome.windows.update(existingTab.windowId, { focused: true });
       await chrome.tabs.update(existingTab.id, { active: true, highlighted: true });
@@ -360,14 +384,13 @@ async function switchBackToPrimary() {
       primaryTabId = existingTab.id;
       console.log('[Tab Keeper] ✓ SUCCESS - switched to tab', existingTab.id);
       
-      // Reset login attempt flag
       setTimeout(() => {
         chrome.tabs.sendMessage(existingTab.id, { action: 'resetLoginAttempt' }).catch(e => {
           console.log('[Tab Keeper] Could not reset login attempt:', e.message);
         });
       }, 500);
     } else {
-      console.log('[Tab Keeper] No existing tab found - creating new one');
+      console.log('[Tab Keeper] No existing primary tab found - creating new one');
       const newTab = await chrome.tabs.create({ url: PRIMARY_URL });
       primaryTabId = newTab.id;
       console.log('[Tab Keeper] ✓ Created new primary tab:', newTab.id);
