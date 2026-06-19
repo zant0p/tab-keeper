@@ -74,24 +74,13 @@ jobs:
             echo "key_generated=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Read PEM key for CRX signing
-        id: read_pem
-        run: |
-          PEM_FILE="extension-${{ matrix.variant }}.pem"
-          if [ -f "$PEM_FILE" ]; then
-            echo "pem_content=$(cat $PEM_FILE | base64 -w 0)" >> $GITHUB_OUTPUT
-          else
-            echo "::error::PEM file not found: $PEM_FILE"
-            exit 1
-          fi
-
       - name: Build signed CRX
-        uses: emilymclean/pack-chromium-extension-action@v1
+        uses: cardinalby/webext-buildtools-chrome-extension-action@v1
         with:
-          input-folder: '.'
-          output-file: tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.crx
-        env:
-          EXTENSION_KEY: ${{ fromBase64(steps.read_pem.outputs.pem_content) }}
+          inputFolder: .
+          zipFilePath: tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.zip
+          crxFilePath: tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.crx
+          privateKeyFile: extension-${{ matrix.variant }}.pem
 
       - name: Calculate extension ID from PEM
         id: ext_id
