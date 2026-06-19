@@ -53,15 +53,17 @@ async function updateUI() {
         timerDisplay.style.display = 'none';
         stopCountdown();
       } else if (isOnSecondary) {
-        const seconds = Math.round(config.timerDuration / 1000);
+        const mins = Math.floor(config.timerDuration / 60000);
+        const secs = Math.floor((config.timerDuration % 60000) / 1000);
         statusEl.className = 'status waiting';
-        statusEl.textContent = `⚠️ On secondary tab (timer running, ~${seconds}s)`;
+        statusEl.textContent = `⚠️ On secondary tab (timer running, ~${mins}m ${secs}s)`;
         timerDisplay.style.display = 'block';
         startCountdown(config.lastActivity, config.timerDuration);
       } else if (config.timerActive && config.lastActivity) {
-        const seconds = Math.round(config.timerDuration / 1000);
+        const mins = Math.floor(config.timerDuration / 60000);
+        const secs = Math.floor((config.timerDuration % 60000) / 1000);
         statusEl.className = 'status waiting';
-        statusEl.textContent = `⏰ Away from targets (returning in ~${seconds}s)`;
+        statusEl.textContent = `⏰ Away from targets (returning in ~${mins}m ${secs}s)`;
         timerDisplay.style.display = 'block';
         startCountdown(config.lastActivity, config.timerDuration);
       } else {
@@ -83,8 +85,9 @@ function startCountdown(startTime, duration) {
     const elapsed = Date.now() - startTime;
     const remaining = Math.max(0, duration - elapsed);
     
-    const secs = Math.floor(remaining / 1000);
-    countdownEl.textContent = String(secs).padStart(3, '0') + 's';
+    const mins = Math.floor(remaining / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+    countdownEl.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
     
     if (remaining > 0) {
       countdownInterval = setTimeout(update, 1000);

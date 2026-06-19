@@ -1,149 +1,68 @@
-// Tab Keeper - Options Page Script (v1.0.16)
+// Tab Keeper - Options Page Script (v2.0.0)
 
-let managedConfig = {};
-
-// Load settings from managed or local storage
+// Get the current variant from background script
 async function loadSettings() {
-  // Try managed storage first
-  const managed = await chrome.storage.managed.get([
-    'primaryUrl', 'secondaryUrl', 'timerMinutes', 'username', 'password', 'autoLoginEnabled'
-  ]);
+  console.log('[Options] Loading settings');
   
-  const hasManaged = managed && Object.keys(managed).length > 0;
+  // Get variant info from background
+  const status = await chrome.runtime.sendMessage({ action: 'getStatus' });
   
-  if (hasManaged) {
-    console.log('[Options] Managed config detected');
-    managedConfig = managed;
-    
-    // Show managed notice
-    document.getElementById('managedNotice').style.display = 'block';
-    
-    // Load managed values (read-only)
-    document.getElementById('enabled').checked = managed.autoLoginEnabled !== false;
-    document.getElementById('primaryUrl').value = managed.primaryUrl || '';
-    document.getElementById('secondaryUrl').value = managed.secondaryUrl || '';
-    document.getElementById('timerMinutes').value = managed.timerMinutes || 10;
-    document.getElementById('username').value = managed.username || '';
-    document.getElementById('password').value = managed.password || '';
-    
-    // Disable fields that are managed
-    ['enabled', 'primaryUrl', 'secondaryUrl', 'timerMinutes', 'username', 'password'].forEach(id => {
-      if (managedConfig[id] !== undefined) {
-        document.getElementById(id).disabled = true;
-      }
-    });
-  } else {
-    // Load from local storage
-    console.log('[Options] Loading local config');
-    const config = await chrome.storage.local.get([
-      'enabled', 'primaryUrl', 'secondaryUrl', 'timerMinutes', 'username', 'password'
-    ]);
-
-    document.getElementById('enabled').checked = config.enabled !== false;
-    document.getElementById('primaryUrl').value = config.primaryUrl || '';
-    document.getElementById('secondaryUrl').value = config.secondaryUrl || '';
-    document.getElementById('timerMinutes').value = config.timerMinutes || 10;
-    document.getElementById('username').value = config.username || '';
-    document.getElementById('password').value = config.password || '';
+  // Set read-only credential fields based on variant
+  const usernameField = document.getElementById('username');
+  const passwordField = document.getElementById('password');
+  
+  if (status && status.variant) {
+    if (status.variant === 'AL') {
+      usernameField.value = 'alstaff';
+      passwordField.value = 'alstaff';
+    } else if (status.variant === 'SNF') {
+      usernameField.value = 'snf';
+      passwordField.value = 'snf';
+    } else {
+      usernameField.value = 'Auto-configured';
+      passwordField.value = 'Auto-configured';
+    }
   }
+  
+  // Load timer setting from local storage
+  const config = await chrome.storage.local.get(['timerSeconds']);
+  const timerSeconds = config.timerSeconds || 300; // Default 300 seconds (5 minutes)
+  
+  document.getElementById('timerSeconds').value = timerSeconds;
+  
+  // URLs are hardcoded in v2.0.0, but show them for reference
+  document.getElementById('primaryUrl').value = 'https://10.1.129.207/Arial/#/login';
+  document.getElementById('secondaryUrl').value = 'https://login.pointclickcare.com/poc/userLogin.xhtml';
+  
+  // Disable URL fields (hardcoded in v2.0.0)
+  document.getElementById('primaryUrl').disabled = true;
+  document.getElementById('secondaryUrl').disabled = true;
+  
+  console.log('[Options] Settings loaded, variant:', status?.variant);
 }
 
-// Save settings to local storage
+// Save timer settings to local storage
 async function saveSettings() {
-  // Check if managed - can't save locally if managed
-  if (Object.keys(managedConfig).length > 0) {
-    showMessage('⚠️ Settings are managed by your organization and cannot be changed locally', 'error');
-    return;
-  }
-  
-  const enabled = document.getElementById('enabled').checked;
-  const primaryUrl = document.getElementById('primaryUrl').value.trim();
-  const secondaryUrl = document.getElementById('secondaryUrl').value.trim();
-  const timerMinutes = parseInt(document.getElementById('timerMinutes').value) || 10;
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
+  const timerSeconds = parseInt(document.getElementById('timerSeconds').value) || 300;
 
   // Validate
-  if (enabled && !primaryUrl) {
-    showMessage('⚠️ Primary URL is required when enabled', 'error');
-    return;
-  }
-
-  if (timerMinutes < 1 || timerMinutes > 60) {
-    showMessage('⚠️ Timer must be between 1 and 60 minutes', 'error');
+  if (timerSeconds < 10 || timerSeconds > 3600) {
+    showMessage('⚠️ Timer must be between 10 and 3600 seconds', 'error');
     return;
   }
 
   // Save
   await chrome.storage.local.set({
-    enabled,
-    primaryUrl,
-    secondaryUrl,
-    timerMinutes,
-    username,
-    password
+    timerSeconds
   });
 
-  showMessage('✅ Settings saved successfully!', 'success');
+  showMessage('✅ Settings saved successfully! Timer set to ' + timerSeconds + ' seconds (' + 
+              Math.floor(timerSeconds / 60) + 'm ' + (timerSeconds % 60) + 's)', 'success');
   
   // Auto-hide success message after 3 seconds
   setTimeout(() => {
     document.getElementById('message').className = 'message';
   }, 3000);
-}
-
-// Clear credentials
-async function clearCredentials() {
-  if (Object.keys(managedConfig).length > 0 && managedConfig.username) {
-    showMessage('⚠️ Credentials are managed by your organization', 'error');
-    return;
-  }
-  
-  if (confirm('Are you sure you want to clear the stored username and password?')) {
-    await chrome.storage.local.remove(['username', 'password']);
-    document.getElementById('username').value = '';
-    document.getElementById('password').value = '';
-    showMessage('🗑️ Credentials cleared', 'success');
-    
-    setTimeout(() => {
-      document.getElementById('message').className = 'message';
-    }, 3000);
-  }
-}
-
-// Test auto-login
-async function testLogin() {
-  const primaryUrl = document.getElementById('primaryUrl').value.trim();
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
-
-  if (!primaryUrl) {
-    showMessage('⚠️ Please enter a primary URL first', 'error');
-    return;
-  }
-
-  if (!username || !password) {
-    showMessage('⚠️ Please enter credentials to test auto-login', 'error');
-    return;
-  }
-
-  // Save temporarily
-  await chrome.storage.local.set({
-    primaryUrl,
-    username,
-    password
-  });
-
-  // Open in new tab
-  const tab = await chrome.tabs.create({ url: primaryUrl });
-  
-  showMessage(`🧪 Opening ${primaryUrl} - auto-login will trigger if login page is detected`, 'success');
-  
-  setTimeout(() => {
-    chrome.tabs.sendMessage(tab.id, { action: 'checkLogin' }).catch(() => {
-      // Tab might not be ready yet
-    });
-  }, 2000);
 }
 
 // Show message
@@ -155,8 +74,6 @@ function showMessage(text, type) {
 
 // Event listeners
 document.getElementById('save').addEventListener('click', saveSettings);
-document.getElementById('clearCredentials').addEventListener('click', clearCredentials);
-document.getElementById('testLogin').addEventListener('click', testLogin);
 
 // Load settings on page load
 loadSettings();
