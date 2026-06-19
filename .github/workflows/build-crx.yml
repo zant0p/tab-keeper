@@ -83,11 +83,9 @@ jobs:
           # First create ZIP
           zip -r "$ZIP_FILE" manifest.json background.js content.js popup.html popup.js options.html options.js icons/ -x "*.git*" "*.pem"
           
-          # Install chromium for CRX packing
-          apt-get update -qq u0026u0026 apt-get install -y -qq chromium-browser
           
           # Pack to CRX using chromium
-          chromium-browser --pack-extension=. --pack-extension-key="$PEM_FILE"
+          google-chrome --pack-extension=. --pack-extension-key="$PEM_FILE"
           
           # Move output to expected name
           mv chrome.crx "$CRX_FILE"
