@@ -94,7 +94,7 @@ jobs:
           extensionDir: .
           zipIgnore: "*.pem,.git*"
           crxFilePath: tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.crx
-          privateKey: extension-${{ matrix.variant }}.pem
+          privateKey: *** cat extension-${{ matrix.variant }}.pem }}
 
       - name: Calculate extension ID from PEM
         id: ext_id
