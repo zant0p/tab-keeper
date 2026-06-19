@@ -82,24 +82,41 @@ chrome.runtime.onStartup.addListener(async () => {
 async function ensureTabsExist() {
   const allTabs = await chrome.tabs.query({});
   
-  // Find existing primary tab
-  let existingPrimary = allTabs.find(tab => tab.url === PRIMARY_URL || tab.url?.startsWith(PRIMARY_URL));
+  // Find ALL existing primary tabs (could be duplicates from bug)
+  const allPrimaryTabs = allTabs.filter(tab => tab.url === PRIMARY_URL || tab.url?.startsWith(PRIMARY_URL));
   
-  if (existingPrimary) {
-    console.log('[Tab Keeper] Primary tab already exists:', existingPrimary.id);
-    primaryTabId = existingPrimary.id;
+  if (allPrimaryTabs.length > 0) {
+    console.log('[Tab Keeper] Primary tab(s) already exist:', allPrimaryTabs.length);
+    // Use the first one as the primary
+    primaryTabId = allPrimaryTabs[0].id;
+    
+    // If there are duplicates, close them (except the first)
+    if (allPrimaryTabs.length > 1) {
+      console.log('[Tab Keeper] Closing duplicate primary tabs...');
+      for (let i = 1; i < allPrimaryTabs.length; i++) {
+        chrome.tabs.remove(allPrimaryTabs[i].id);
+      }
+    }
   } else {
     console.log('[Tab Keeper] Primary tab not found - creating it');
     const newTab = await chrome.tabs.create({ url: PRIMARY_URL, active: false });
     primaryTabId = newTab.id;
   }
   
-  // Find existing secondary tab
-  let existingSecondary = allTabs.find(tab => tab.url === SECONDARY_URL || tab.url?.startsWith(SECONDARY_URL));
+  // Find ALL existing secondary tabs
+  const allSecondaryTabs = allTabs.filter(tab => tab.url === SECONDARY_URL || tab.url?.startsWith(SECONDARY_URL));
   
-  if (existingSecondary) {
-    console.log('[Tab Keeper] Secondary tab already exists:', existingSecondary.id);
-    secondaryTabId = existingSecondary.id;
+  if (allSecondaryTabs.length > 0) {
+    console.log('[Tab Keeper] Secondary tab(s) already exist:', allSecondaryTabs.length);
+    secondaryTabId = allSecondaryTabs[0].id;
+    
+    // Close duplicates
+    if (allSecondaryTabs.length > 1) {
+      console.log('[Tab Keeper] Closing duplicate secondary tabs...');
+      for (let i = 1; i < allSecondaryTabs.length; i++) {
+        chrome.tabs.remove(allSecondaryTabs[i].id);
+      }
+    }
   } else {
     console.log('[Tab Keeper] Secondary tab not found - creating it');
     const newTab = await chrome.tabs.create({ url: SECONDARY_URL, active: false });
