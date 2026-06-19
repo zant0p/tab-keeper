@@ -72,6 +72,12 @@ chrome.runtime.onStartup.addListener(async () => {
   await ensureTabsExist();
 });
 
+// Also open tabs when extension is first loaded/refreshed
+(async () => {
+  console.log('[Tab Keeper] Background script loaded');
+  await ensureTabsExist();
+})();
+
 // Ensure target tabs exist (auto-reopen if closed)
 async function ensureTabsExist() {
   const allTabs = await chrome.tabs.query({});
@@ -82,6 +88,10 @@ async function ensureTabsExist() {
     console.log('[Tab Keeper] Primary tab not found - creating it');
     const newTab = await chrome.tabs.create({ url: PRIMARY_URL, active: false });
     primaryTabId = newTab.id;
+  } else {
+    console.log('[Tab Keeper] Primary tab already exists');
+    // Find and store the existing primary tab ID
+    primaryTabId = allTabs.find(tab => tab.url === PRIMARY_URL || tab.url?.startsWith(PRIMARY_URL))?.id;
   }
   
   // Check secondary tab
@@ -90,7 +100,13 @@ async function ensureTabsExist() {
     console.log('[Tab Keeper] Secondary tab not found - creating it');
     const newTab = await chrome.tabs.create({ url: SECONDARY_URL, active: false });
     secondaryTabId = newTab.id;
+  } else {
+    console.log('[Tab Keeper] Secondary tab already exists');
+    // Find and store the existing secondary tab ID
+    secondaryTabId = allTabs.find(tab => tab.url === SECONDARY_URL || tab.url?.startsWith(SECONDARY_URL))?.id;
   }
+  
+  console.log('[Tab Keeper] Tab IDs - Primary:', primaryTabId, 'Secondary:', secondaryTabId);
 }
 
 // Listen for alarm events
@@ -364,6 +380,14 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('[Tab Keeper] Message received:', message.action);
   
+  if (message.action === 'launchPages') {
+    console.log('[Tab Keeper] Launch pages requested');
+    ensureTabsExist().then(() => {
+      sendResponse({ status: 'launched' });
+    });
+    return true;
+  }
+  
   if (message.action === 'getStatus') {
     getConfig(['timerActive', 'lastActivity', 'timerDuration', 'timerStartTime', 'timerSeconds']).then((state) => {
       sendResponse({
@@ -421,8 +445,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           console.log('[Auto-Login] Starting login process...');
           
           // Find and fill login form
-          const usernameField = document.querySelector('input[name*="user"], input[name*="email"], #username, #email, [name="username"], input[type="email"]');
-          const passwordField = document.querySelector('input[type="password"]');
+          const usernameField = document.querySelector('input[name*="user"], input[name*="email"], #username, #email, [name="username"], input[type="email"], ion-input[type="email"], input[id*="user"]');
+          const passwordField = document.querySelector('input[type="password"], ion-input[type="password"]');
           const form = document.querySelector('form');
           
           if (!usernameField || !passwordField) {
@@ -431,13 +455,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
           
           console.log('[Auto-Login] Found login fields, filling credentials...');
-          usernameField.value = username;
-          passwordField.value = password;
           
-          // Trigger input events for React/modern frameworks
-          ['input', 'change'].forEach(evt => {
+          // Handle both regular inputs and Ionic ion-input
+          if (usernameField.tagName === 'ION-INPUT') {
+            usernameField.value = username;
+            const nativeInput = usernameField.shadowRoot?.querySelector('input') || usernameField.querySelector('input');
+            if (nativeInput) nativeInput.value = username;
+          } else {
+            usernameField.value = username;
+          }
+          
+          if (passwordField.tagName === 'ION-INPUT') {
+            passwordField.value = password;
+            const nativeInput = passwordField.shadowRoot?.querySelector('input') || passwordField.querySelector('input');
+            if (nativeInput) nativeInput.value = password;
+          } else {
+            passwordField.value = password;
+          }
+          
+          // Trigger input events for React/modern frameworks and Ionic
+          ['input', 'change', 'ionChange'].forEach(evt => {
             usernameField.dispatchEvent(new Event(evt, { bubbles: true }));
             passwordField.dispatchEvent(new Event(evt, { bubbles: true }));
+            
+            // Also dispatch on native input if it's an ion-input
+            const nativeUser = usernameField.shadowRoot?.querySelector('input') || usernameField.querySelector('input');
+            const nativePass = passwordField.shadowRoot?.querySelector('input') || passwordField.querySelector('input');
+            if (nativeUser) nativeUser.dispatchEvent(new Event(evt, { bubbles: true }));
+            if (nativePass) nativePass.dispatchEvent(new Event(evt, { bubbles: true }));
           });
           
           // Focus and blur to trigger validation
@@ -445,18 +490,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           setTimeout(() => {
             passwordField.blur();
             
-            // Try clicking submit button first
-            const submitBtn = document.querySelector('button[type="submit"], input[type="submit"], button.submit, .submit-btn');
+            // Try multiple button selectors for Ionic
+            const submitBtn = document.querySelector('button[type="submit"], input[type="submit"], button.submit, .submit-btn, ion-button[type="submit"], button.ion-button, [class*="login-btn"], [id*="login-btn"], button[class*="primary"]');
+            
             if (submitBtn) {
-              console.log('[Auto-Login] Clicking submit button');
-              submitBtn.click();
+              console.log('[Auto-Login] Clicking submit button:', submitBtn.tagName);
+              
+              // For Ionic buttons, might need to trigger click differently
+              if (submitBtn.tagName === 'ION-BUTTON') {
+                // Try clicking the shadow DOM button
+                const shadowBtn = submitBtn.shadowRoot?.querySelector('button') || submitBtn;
+                shadowBtn.click();
+              } else {
+                submitBtn.click();
+              }
             } else if (form) {
               console.log('[Auto-Login] Submitting form directly');
               form.submit();
             } else {
               console.log('[Auto-Login] No submit button or form found');
+              
+              // Last resort: try any button with login-related text
+              const allButtons = document.querySelectorAll('button, ion-button, [role="button"]');
+              allButtons.forEach(btn => {
+                const text = btn.textContent.toLowerCase() || btn.getAttribute('aria-label')?.toLowerCase() || '';
+                if (text.includes('login') || text.includes('sign in') || text.includes('submit')) {
+                  console.log('[Auto-Login] Clicking fallback button:', text);
+                  btn.click();
+                }
+              });
             }
-          }, 300);
+          }, 500);
         },
         args: [creds.username, creds.password]
       });

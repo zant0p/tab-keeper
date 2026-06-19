@@ -108,11 +108,11 @@ document.getElementById('openOptions').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 
-document.getElementById('switchNow').addEventListener('click', () => {
-  console.log('[Popup] Switch button clicked');
-  chrome.runtime.sendMessage({ action: 'manualSwitch' }, (response) => {
-    console.log('[Popup] Switch response:', response);
-    if (response && response.status === 'switching') {
+document.getElementById('launchPages').addEventListener('click', () => {
+  console.log('[Popup] Launch pages button clicked');
+  chrome.runtime.sendMessage({ action: 'launchPages' }, (response) => {
+    console.log('[Popup] Launch response:', response);
+    if (response && response.status === 'launched') {
       window.close();
     }
   });
