@@ -9,6 +9,16 @@ const MAX_CHECK_ATTEMPTS = 5;
 // Check for login status
 function startLoginMonitoring() {
   console.log('Tab Keeper Content: Starting login monitoring');
+  
+  // Only run on primary URL (PointClickCare internal)
+  const currentUrl = window.location.href;
+  const primaryUrl = 'https://10.1.129.207/Arial/#/login';
+  
+  if (!currentUrl.startsWith('https://10.1.129.207/Arial')) {
+    console.log('Tab Keeper Content: Not on primary URL, skipping auto-login');
+    return;
+  }
+  
   checkLoginStatusDelayed();
 }
 
