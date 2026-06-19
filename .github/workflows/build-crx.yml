@@ -87,14 +87,15 @@ jobs:
           ZIP_FILE="tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.zip"
           zip -r "$ZIP_FILE" manifest.json background.js content.js popup.html popup.js options.html options.js icons/ -x "*.git*" "*.pem"
           echo "Created $ZIP_FILE"
-
       - name: Build signed CRX
-        uses: cardinalby/webext-buildtools-chrome-crx-action@v1
-        with:
-          extensionDir: .
-          zipIgnore: "*.pem,.git*"
-          crxFilePath: tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.crx
-          privateKey: *** cat extension-${{ matrix.variant }}.pem }}
+        id: pack_crx
+        run: |
+          npx @cardinalby/webext-buildtools-chrome-crx \
+            --extensionDir . \
+            --zipIgnore "*.pem,.git*" \
+            --crxFilePath tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.crx \
+            --privateKey extension-${{ matrix.variant }}.pem
+
 
       - name: Calculate extension ID from PEM
         id: ext_id
