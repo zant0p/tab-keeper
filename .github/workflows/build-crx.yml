@@ -3,20 +3,24 @@ name: Build CRX for Enterprise Deployment
 on:
   push:
     tags:
-      - 'v*'  # Trigger on version tags like v1.0.19
+      - 'v*'  # Trigger on version tags like v2.0.0
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g., 1.0.19)'
+        description: 'Version number (e.g., 2.0.0)'
         required: true
-        default: '1.0.19'
+        default: '2.0.0'
 
 permissions:
   contents: write  # For creating releases
 
 jobs:
-  build-crx:
+  build-variants:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        variant: [AL, SNF]
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,6 +35,11 @@ jobs:
             echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Set variant in background.js
+        run: |
+          sed -i "s/const VARIANT = '.*'/const VARIANT = '${{ matrix.variant }}'/" background.js
+          echo "Set variant to ${{ matrix.variant }}"
+
       - name: Read manifest version
         run: |
           MANIFEST_VERSION=$(jq -r '.version' manifest.json)
@@ -41,7 +50,7 @@ jobs:
 
       - name: Pack extension to ZIP
         run: |
-          zip -r tab-keeper-${{ steps.version.outputs.version }}.zip \
+          zip -r tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.zip \
             manifest.json \
             background.js \
             content.js \
@@ -49,7 +58,6 @@ jobs:
             popup.js \
             options.html \
             options.js \
-            managed_storage_schema.json \
             icons/ \
             -x "*.git*"
 
@@ -70,7 +78,7 @@ jobs:
         uses: emilymclean/pack-chromium-extension-action@v1
         with:
           input-folder: '.'
-          output-file: tab-keeper-${{ steps.version.outputs.version }}.crx
+          output-file: tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.crx
         env:
           EXTENSION_KEY: ${{ secrets.EXTENSION_KEY || '' }}
 
@@ -85,7 +93,7 @@ jobs:
               tr 'A-Z' 'a-z' | \
               tr -d '=')
             echo "extension_id=$EXT_ID" >> $GITHUB_OUTPUT
-            echo "✅ Calculated extension ID: $EXT_ID"
+            echo "✅ Calculated extension ID for ${{ matrix.variant }}: $EXT_ID"
           else
             echo "::warning::No PEM key found - using placeholder in updates.xml"
             echo "extension_id=PENDING_EXTENSION_ID" >> $GITHUB_OUTPUT
@@ -93,26 +101,54 @@ jobs:
 
       - name: Create updates.xml for self-hosting
         run: |
-          cat > updates.xml << EOF
+          cat > updates-${{ matrix.variant }}.xml << EOF
           <?xml version='1.0' encoding='UTF-8'?>
           <gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
             <app appid='${{ steps.ext_id.outputs.extension_id }}'>
-              <updatecheck codebase='https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/tab-keeper-${{ steps.version.outputs.version }}.crx' version='${{ steps.version.outputs.version }}' />
+              <updatecheck codebase='https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.crx' version='${{ steps.version.outputs.version }}' />
             </app>
           </gupdate>
           EOF
-          echo "Generated updates.xml with appid: ${{ steps.ext_id.outputs.extension_id }}"
+          echo "Generated updates-${{ matrix.variant }}.xml with appid: ${{ steps.ext_id.outputs.extension_id }}"
 
       - name: Upload CRX artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tab-keeper-crx-${{ steps.version.outputs.version }}
+          name: tab-keeper-${{ matrix.variant }}-crx-${{ steps.version.outputs.version }}
           path: |
-            tab-keeper-${{ steps.version.outputs.version }}.crx
-            tab-keeper-${{ steps.version.outputs.version }}.zip
-            updates.xml
-            extension.pem
+            tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.crx
+            tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.zip
+            updates-${{ matrix.variant }}.xml
           retention-days: 30
+
+  create-release:
+    needs: build-variants
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List downloaded artifacts
+        run: |
+          find artifacts -type f -name "*.crx" -o -name "*.zip" -o -name "*.xml"
+          cp artifacts/tab-keeper-AL-crx-${{ steps.version.outputs.version }}/tab-keeper-AL-${{ steps.version.outputs.version }}.crx .
+          cp artifacts/tab-keeper-AL-crx-${{ steps.version.outputs.version }}/tab-keeper-AL-${{ steps.version.outputs.version }}.zip .
+          cp artifacts/tab-keeper-SNF-crx-${{ steps.version.outputs.version }}/tab-keeper-SNF-${{ steps.version.outputs.version }}.crx .
+          cp artifacts/tab-keeper-SNF-crx-${{ steps.version.outputs.version }}/tab-keeper-SNF-${{ steps.version.outputs.version }}.zip .
+          cp artifacts/tab-keeper-AL-crx-${{ steps.version.outputs.version }}/updates-AL.xml ./updates-AL.xml
+          cp artifacts/tab-keeper-SNF-crx-${{ steps.version.outputs.version }}/updates-SNF.xml ./updates-SNF.xml
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -124,31 +160,60 @@ jobs:
             
             ### Enterprise Deployment Files
             
-            - **tab-keeper-${{ steps.version.outputs.version }}.crx** - Signed Chrome extension for force-install
-            - **tab-keeper-${{ steps.version.outputs.version }}.zip** - Unpacked extension for testing
-            - **updates.xml** - Auto-update manifest (requires extension ID)
-            - **extension.pem** - Private key (⚠️ download and backup securely!)
+            #### AL (Assisted Living) Variant
+            - **tab-keeper-AL-${{ steps.version.outputs.version }}.crx** - Signed Chrome extension for AL facilities
+            - **tab-keeper-AL-${{ steps.version.outputs.version }}.zip** - Unpacked extension for testing
+            - **updates-AL.xml** - Auto-update manifest for AL variant
+            
+            #### SNF (Skilled Nursing Facility) Variant
+            - **tab-keeper-SNF-${{ steps.version.outputs.version }}.crx** - Signed Chrome extension for SNF facilities
+            - **tab-keeper-SNF-${{ steps.version.outputs.version }}.zip** - Unpacked extension for testing
+            - **updates-SNF.xml** - Auto-update manifest for SNF variant
+            
+            ### Credentials (Built-in)
+            
+            | Variant | Username | Password |
+            |---------|----------|----------|
+            | AL      | alstaff  | alstaff  |
+            | SNF     | snf      | snf      |
+            
+            ### URLs
+            - **Primary:** https://10.1.129.207/Arial/#/login
+            - **Secondary:** https://login.pointclickcare.com/poc/userLogin.xhtml
             
             ### Chrome Enterprise Policy Configuration
             
             Add to ExtensionSettings policy:
             ```json
             {
-              "<EXTENSION_ID>": {
+              "<AL_EXTENSION_ID>": {
                 "installation_mode": "force_installed",
-                "update_url": "https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/updates.xml"
+                "update_url": "https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/updates-AL.xml"
+              },
+              "<SNF_EXTENSION_ID>": {
+                "installation_mode": "force_installed",
+                "update_url": "https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/updates-SNF.xml"
               }
             }
             ```
             
-            ⚠️ **Important:** Replace `<EXTENSION_ID>` with the actual extension ID from the CRX file or after uploading to Chrome Web Store.
+            ⚠️ **Important:** Replace `<AL_EXTENSION_ID>` and `<SNF_EXTENSION_ID>` with the actual extension IDs from the CRX files.
+            
+            ### Features
+            
+            - ✅ Auto-login with built-in credentials (no password manager needed)
+            - ✅ Keeps both primary and secondary tabs alive (only 1 copy each)
+            - ✅ Timer in seconds (not minutes) - refocuses to primary tab only
+            - ✅ AL variant: Auto-dismisses Chrome password breach popup
+            - ✅ Auto-reopens tabs if closed
+            - ✅ Works with Chrome Enterprise force-install
             
             ### Installation Notes
             
-            1. Download the `.crx` file
+            1. Download the appropriate `.crx` file(s) for your facility type
             2. Host on your server or use GitHub Releases URL
             3. Configure Chrome Admin Console with ExtensionSettings policy
-            4. For auto-updates, host `updates.xml` and update the appid
+            4. For auto-updates, host `updates-*.xml` files
             
             ### Testing
             
@@ -158,19 +223,12 @@ jobs:
             3. Enable Developer Mode
             4. Click "Load unpacked" → Select extracted folder
           files: |
-            tab-keeper-${{ steps.version.outputs.version }}.crx
-            tab-keeper-${{ steps.version.outputs.version }}.zip
-            updates.xml
-            extension.pem
+            tab-keeper-AL-${{ steps.version.outputs.version }}.crx
+            tab-keeper-AL-${{ steps.version.outputs.version }}.zip
+            tab-keeper-SNF-${{ steps.version.outputs.version }}.crx
+            tab-keeper-SNF-${{ steps.version.outputs.version }}.zip
+            updates-AL.xml
+            updates-SNF.xml
           draft: false
           prerelease: false
           generate_release_notes: true
-
-      - name: Upload PEM key as secure artifact
-        if: steps.generate_key.outputs.key_generated == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ⚠️SECURE-extension-key-${{ steps.version.outputs.version }}
-          path: extension.pem
-          retention-days: 7
-        continue-on-error: true

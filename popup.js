@@ -1,4 +1,4 @@
-// Tab Keeper - Popup Script (v1.0.16)
+// Tab Keeper - Popup Script (v2.0.0)
 
 let countdownInterval = null;
 
@@ -8,16 +8,22 @@ async function updateUI() {
   const secondaryUrlEl = document.getElementById('secondaryUrl');
   const timerDisplay = document.getElementById('timerDisplay');
   const countdownEl = document.getElementById('countdown');
+  const variantEl = document.getElementById('variant');
 
   // Get status from background script
   chrome.runtime.sendMessage({ action: 'getStatus' }, (response) => {
     const config = response || {};
     
+    // Show variant
+    if (variantEl) {
+      variantEl.textContent = config.variant || 'Unknown';
+    }
+    
     // Show config
     primaryUrlEl.textContent = config.primaryUrl || 'Not configured';
     secondaryUrlEl.textContent = config.secondaryUrl || 'Not configured';
 
-    if (!config.enabled) {
+    if (!config.enabled && config.enabled !== undefined) {
       statusEl.className = 'status inactive';
       statusEl.textContent = 'Tab Keeper is disabled';
       timerDisplay.style.display = 'none';
@@ -47,15 +53,15 @@ async function updateUI() {
         timerDisplay.style.display = 'none';
         stopCountdown();
       } else if (isOnSecondary) {
+        const seconds = Math.round(config.timerDuration / 1000);
         statusEl.className = 'status waiting';
-        const minutes = Math.round(config.timerDuration / 60000);
-        statusEl.textContent = '⚠️ On secondary tab (timer running, ~' + minutes + ' min)';
+        statusEl.textContent = `⚠️ On secondary tab (timer running, ~${seconds}s)`;
         timerDisplay.style.display = 'block';
         startCountdown(config.lastActivity, config.timerDuration);
       } else if (config.timerActive && config.lastActivity) {
+        const seconds = Math.round(config.timerDuration / 1000);
         statusEl.className = 'status waiting';
-        const minutes = Math.round(config.timerDuration / 60000);
-        statusEl.textContent = '⏰ Away from targets (returning in ~' + minutes + ' min)';
+        statusEl.textContent = `⏰ Away from targets (returning in ~${seconds}s)`;
         timerDisplay.style.display = 'block';
         startCountdown(config.lastActivity, config.timerDuration);
       } else {
@@ -77,10 +83,8 @@ function startCountdown(startTime, duration) {
     const elapsed = Date.now() - startTime;
     const remaining = Math.max(0, duration - elapsed);
     
-    const mins = Math.floor(remaining / 60000);
-    const secs = Math.floor((remaining % 60000) / 1000);
-    countdownEl.textContent = 
-      String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+    const secs = Math.floor(remaining / 1000);
+    countdownEl.textContent = String(secs).padStart(3, '0') + 's';
     
     if (remaining > 0) {
       countdownInterval = setTimeout(update, 1000);

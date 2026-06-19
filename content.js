@@ -1,59 +1,15 @@
-// Tab Keeper - Content Script
-// Detects if user is logged out and requests auto-login
-// Checks multiple times to handle slow-loading pages
-// ONLY triggers auto-login on the configured target site
+// Tab Keeper - Content Script (v2.0.0)
+// Detects login page, auto-fills credentials, handles Chrome breach popup (AL variant)
 
 let loginCheckTimeout = null;
 let loginAttempted = false;
 let checkAttempts = 0;
-const MAX_CHECK_ATTEMPTS = 5; // Check up to 5 times over 7 seconds
-let targetUrl = null; // Store target URL to verify we're on the right site
-
-// Extract base URL (domain + first path segment) for matching
-function getBaseUrl(url) {
-  try {
-    const urlObj = new URL(url);
-    const firstPath = urlObj.pathname.split('/')[1] || '';
-    return urlObj.origin + (firstPath ? '/' + firstPath : '');
-  } catch (e) {
-    return url;
-  }
-}
-
-// Check if a URL matches the target
-function isTargetUrl(currentUrl, targetUrl) {
-  if (!currentUrl || !targetUrl) return false;
-  
-  if (currentUrl === targetUrl) return true;
-  if (currentUrl.startsWith(targetUrl)) return true;
-  
-  const currentBase = getBaseUrl(currentUrl);
-  const targetBase = getBaseUrl(targetUrl);
-  
-  if (currentBase === targetBase) return true;
-  
-  try {
-    const currentDomain = new URL(currentUrl).hostname;
-    const targetDomain = new URL(targetUrl).hostname;
-    if (currentDomain === targetDomain) return true;
-  } catch (e) {}
-  
-  return false;
-}
+const MAX_CHECK_ATTEMPTS = 5;
 
 // Check for login status
 function startLoginMonitoring() {
   console.log('Tab Keeper Content: Starting login monitoring');
-  
-  chrome.runtime.sendMessage({ action: 'getTargetUrl' }, (response) => {
-    if (response && response.targetUrl) {
-      targetUrl = response.targetUrl;
-      console.log('Tab Keeper Content: Target URL:', targetUrl);
-      checkLoginStatusDelayed();
-    } else {
-      console.log('Tab Keeper Content: No target URL configured, skipping login monitoring');
-    }
-  });
+  checkLoginStatusDelayed();
 }
 
 function checkLoginStatusDelayed() {
@@ -72,17 +28,6 @@ function checkLoginStatus() {
   checkAttempts++;
   console.log(`Tab Keeper Content: Login check attempt ${checkAttempts}/${MAX_CHECK_ATTEMPTS}`);
   
-  // Verify we're on the target site before checking for login page
-  if (targetUrl) {
-    const currentUrl = window.location.href;
-    const isTargetSite = isTargetUrl(currentUrl, targetUrl);
-    
-    if (!isTargetSite) {
-      console.log('Tab Keeper Content: Not on target site, skipping auto-login');
-      return;
-    }
-  }
-  
   const hasPasswordField = document.querySelector('input[type="password"]') !== null;
   const hasLoginForm = document.querySelector('form[action*="login"], form[action*="signin"], .login-form, #login-form') !== null;
   const hasUsernameField = document.querySelector('input[name*="user"], input[name*="email"], #username, #email, [name="username"]') !== null;
@@ -95,12 +40,19 @@ function checkLoginStatus() {
   const isLoginPage = hasPasswordField || hasLoginForm || (hasUsernameField && hasKeywords);
 
   if (isLoginPage && !loginAttempted) {
-    console.log('Tab Keeper Content: Login page detected on target site, requesting auto-login');
+    console.log('Tab Keeper Content: Login page detected, requesting auto-login');
     loginAttempted = true;
     
     chrome.runtime.sendMessage({ action: 'loginRequired' }, (response) => {
-      if (response) {
+      if (response && response.success) {
         console.log('Tab Keeper Content: Auto-login initiated');
+        
+        // For AL variant: wait for breach popup and close it after login attempt
+        if (response.variant === 'AL') {
+          setTimeout(() => {
+            closeBreachPopup();
+          }, 3000); // Wait 3 seconds after login attempt
+        }
       } else {
         console.log('Tab Keeper Content: No response from background, will retry');
         loginAttempted = false;
@@ -118,6 +70,42 @@ function checkLoginStatus() {
       checkLoginStatusDelayed();
     }
   }
+}
+
+// Close Chrome's password breach notification popup (AL variant)
+function closeBreachPopup() {
+  console.log('Tab Keeper Content: Attempting to close breach popup');
+  
+  // Method 1: Look for dialog elements
+  const dialogs = document.querySelectorAll('div[role="dialog"], .mdc-dialog, [aria-label*="password"], [aria-label*="breach"], [aria-label*="compromised"]');
+  dialogs.forEach(dialog => {
+    const closeBtn = dialog.querySelector('button') || dialog.querySelector('[role="button"]');
+    if (closeBtn) {
+      console.log('Tab Keeper Content: Found dialog, clicking close button');
+      closeBtn.click();
+    }
+  });
+  
+  // Method 2: Look for buttons with specific text
+  const allButtons = document.querySelectorAll('button');
+  allButtons.forEach(btn => {
+    const text = btn.textContent.toLowerCase();
+    if (text.includes('dismiss') || text.includes('close') || text.includes('cancel') || text.includes('ignore')) {
+      console.log('Tab Keeper Content: Clicking dismiss button');
+      btn.click();
+    }
+  });
+  
+  // Method 3: Look for overlay/backdrop clicks
+  const overlays = document.querySelectorAll('.backdrop, .overlay, [class*="backdrop"], [class*="overlay"]');
+  overlays.forEach(overlay => {
+    if (overlay.offsetHeight > window.innerHeight * 0.8) {
+      console.log('Tab Keeper Content: Clicking overlay to dismiss');
+      overlay.click();
+    }
+  });
+  
+  chrome.runtime.sendMessage({ action: 'closeBreachPopup' });
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -142,7 +130,6 @@ let hiddenTimeout = null;
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
     console.log('Tab Keeper Content: Tab became visible');
-    // Wait a moment for page to stabilize, then check
     if (hiddenTimeout) clearTimeout(hiddenTimeout);
     hiddenTimeout = setTimeout(() => {
       if (!loginAttempted) {

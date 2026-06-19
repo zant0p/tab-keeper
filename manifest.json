@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Tab Keeper",
-  "version": "1.0.19",
-  "description": "Keeps designated tabs active, auto-switches back after inactivity, and auto-logins when needed. Supports Chrome Enterprise managed storage.",
+  "version": "2.0.0",
+  "description": "Keeps PointClickCare tabs alive with auto-login. AL and SNF variants with built-in credentials.",
   "permissions": [
     "tabs",
     "storage",
@@ -10,11 +10,9 @@
     "scripting",
     "alarms"
   ],
-  "storage": {
-    "managed_schema": "managed_storage_schema.json"
-  },
   "host_permissions": [
-    "<all_urls>"
+    "https://10.1.129.207/*",
+    "https://login.pointclickcare.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -37,7 +35,8 @@
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "https://10.1.129.207/*",
+        "https://login.pointclickcare.com/*"
       ],
       "js": [
         "content.js"
