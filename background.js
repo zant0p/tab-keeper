@@ -490,35 +490,69 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           setTimeout(() => {
             passwordField.blur();
             
-            // Try multiple button selectors for Ionic
-            const submitBtn = document.querySelector('button[type="submit"], input[type="submit"], button.submit, .submit-btn, ion-button[type="submit"], button.ion-button, [class*="login-btn"], [id*="login-btn"], button[class*="primary"]');
+            console.log('[Auto-Login] Looking for login button...');
             
-            if (submitBtn) {
-              console.log('[Auto-Login] Clicking submit button:', submitBtn.tagName);
-              
-              // For Ionic buttons, might need to trigger click differently
-              if (submitBtn.tagName === 'ION-BUTTON') {
-                // Try clicking the shadow DOM button
-                const shadowBtn = submitBtn.shadowRoot?.querySelector('button') || submitBtn;
-                shadowBtn.click();
+            // Helper function to click buttons (handles both regular and Ionic)
+            function clickButton(btn) {
+              console.log('[Auto-Login] Clicking button:', btn.tagName);
+              if (btn.tagName === 'ION-BUTTON') {
+                const shadowBtn = btn.shadowRoot?.querySelector('button');
+                if (shadowBtn) {
+                  console.log('[Auto-Login] Clicking shadow DOM button');
+                  shadowBtn.click();
+                } else {
+                  console.log('[Auto-Login] Clicking ion-button directly');
+                  btn.click();
+                }
               } else {
-                submitBtn.click();
+                btn.click();
               }
-            } else if (form) {
+            }
+            
+            // Strategy 1: Target by name attribute (PointClickCare specific)
+            const namedButton = document.querySelector('ion-button[name="button-login"], button[name="button-login"]');
+            if (namedButton) {
+              console.log('[Auto-Login] Found button by name:', namedButton.tagName);
+              clickButton(namedButton);
+              return;
+            }
+            
+            // Strategy 2: Target ion-button with login text
+            const allIonButtons = document.querySelectorAll('ion-button');
+            for (const btn of allIonButtons) {
+              const text = (btn.textContent || '').toLowerCase().trim();
+              if (text === 'login' || text === 'sign in') {
+                console.log('[Auto-Login] Found ion-button by text:', text);
+                clickButton(btn);
+                return;
+              }
+            }
+            
+            // Strategy 3: Standard submit buttons
+            const submitBtn = document.querySelector('button[type="submit"], input[type="submit"]');
+            if (submitBtn) {
+              console.log('[Auto-Login] Found standard submit button');
+              submitBtn.click();
+              return;
+            }
+            
+            // Strategy 4: Any button with login text
+            const allButtons = document.querySelectorAll('button, [role="button"]');
+            for (const btn of allButtons) {
+              const text = (btn.textContent || btn.getAttribute('aria-label') || '').toLowerCase().trim();
+              if (text === 'login' || text === 'sign in') {
+                console.log('[Auto-Login] Found button by text:', text);
+                btn.click();
+                return;
+              }
+            }
+            
+            // Strategy 5: Submit form directly
+            if (form) {
               console.log('[Auto-Login] Submitting form directly');
               form.submit();
             } else {
-              console.log('[Auto-Login] No submit button or form found');
-              
-              // Last resort: try any button with login-related text
-              const allButtons = document.querySelectorAll('button, ion-button, [role="button"]');
-              allButtons.forEach(btn => {
-                const text = btn.textContent.toLowerCase() || btn.getAttribute('aria-label')?.toLowerCase() || '';
-                if (text.includes('login') || text.includes('sign in') || text.includes('submit')) {
-                  console.log('[Auto-Login] Clicking fallback button:', text);
-                  btn.click();
-                }
-              });
+              console.log('[Auto-Login] No login method found');
             }
           }, 500);
         },
