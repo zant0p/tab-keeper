@@ -88,6 +88,13 @@ jobs:
           zip -r "$ZIP_FILE" manifest.json background.js content.js popup.html popup.js options.html options.js icons/ -x "*.git*" "*.pem"
           echo "Created $ZIP_FILE"
 
+      - name: Build signed CRX
+        uses: cardinalby/webext-buildtools-chrome-crx-action@v1
+        with:
+          zipFilePath: tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.zip
+          crxFilePath: tab-keeper-${{ matrix.variant }}-${{ steps.version.outputs.version }}.crx
+          privateKeyFile: extension-${{ matrix.variant }}.pem
+
       - name: Calculate extension ID from PEM
         id: ext_id
         run: |
