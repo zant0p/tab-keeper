@@ -1,0 +1,158 @@
+name: Build CRX for Enterprise Deployment
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.19
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.19)'
+        required: true
+        default: '1.0.19'
+
+permissions:
+  contents: write  # For creating releases
+
+jobs:
+  build-crx:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # Remove 'v' prefix from tag
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Read manifest version
+        run: |
+          MANIFEST_VERSION=$(jq -r '.version' manifest.json)
+          echo "Manifest version: $MANIFEST_VERSION"
+          if [ "$MANIFEST_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::warning::Manifest version ($MANIFEST_VERSION) does not match tag/version (${{ steps.version.outputs.version }})"
+          fi
+
+      - name: Pack extension to ZIP
+        run: |
+          zip -r tab-keeper-${{ steps.version.outputs.version }}.zip \
+            manifest.json \
+            background.js \
+            content.js \
+            popup.html \
+            popup.js \
+            options.html \
+            options.js \
+            managed_storage_schema.json \
+            icons/ \
+            -x "*.git*"
+
+      - name: Generate PEM key (if not exists)
+        id: generate_key
+        run: |
+          if [ ! -f extension.pem ]; then
+            echo "Generating new PEM key..."
+            openssl genrsa -out extension.pem 2048
+            echo "::warning::New PEM key generated. Download and save it securely! This key is required for future updates."
+            echo "key_generated=true" >> $GITHUB_OUTPUT
+          else
+            echo "Using existing PEM key"
+            echo "key_generated=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build signed CRX
+        uses: emilymclean/pack-chromium-extension-action@v1
+        with:
+          input-folder: '.'
+          output-file: tab-keeper-${{ steps.version.outputs.version }}.crx
+        env:
+          EXTENSION_KEY: ${{ secrets.EXTENSION_KEY || '' }}
+
+      - name: Create updates.xml for self-hosting
+        run: |
+          cat > updates.xml << EOF
+          <?xml version='1.0' encoding='UTF-8'?>
+          <gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
+            <app appid='PENDING_EXTENSION_ID'>
+              <updatecheck codebase='https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/tab-keeper-${{ steps.version.outputs.version }}.crx' version='${{ steps.version.outputs.version }}' />
+            </app>
+          </gupdate>
+          EOF
+          echo "Note: Replace PENDING_EXTENSION_ID with your actual extension ID after first upload"
+
+      - name: Upload CRX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tab-keeper-crx-${{ steps.version.outputs.version }}
+          path: |
+            tab-keeper-${{ steps.version.outputs.version }}.crx
+            tab-keeper-${{ steps.version.outputs.version }}.zip
+            updates.xml
+            extension.pem
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Tab Keeper v${{ steps.version.outputs.version }}
+          body: |
+            ## Tab Keeper v${{ steps.version.outputs.version }}
+            
+            ### Enterprise Deployment Files
+            
+            - **tab-keeper-${{ steps.version.outputs.version }}.crx** - Signed Chrome extension for force-install
+            - **tab-keeper-${{ steps.version.outputs.version }}.zip** - Unpacked extension for testing
+            - **updates.xml** - Auto-update manifest (requires extension ID)
+            - **extension.pem** - Private key (⚠️ download and backup securely!)
+            
+            ### Chrome Enterprise Policy Configuration
+            
+            Add to ExtensionSettings policy:
+            ```json
+            {
+              "<EXTENSION_ID>": {
+                "installation_mode": "force_installed",
+                "update_url": "https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/updates.xml"
+              }
+            }
+            ```
+            
+            ⚠️ **Important:** Replace `<EXTENSION_ID>` with the actual extension ID from the CRX file or after uploading to Chrome Web Store.
+            
+            ### Installation Notes
+            
+            1. Download the `.crx` file
+            2. Host on your server or use GitHub Releases URL
+            3. Configure Chrome Admin Console with ExtensionSettings policy
+            4. For auto-updates, host `updates.xml` and update the appid
+            
+            ### Testing
+            
+            For local testing, load unpacked from the ZIP file:
+            1. Extract ZIP
+            2. Go to `chrome://extensions/`
+            3. Enable Developer Mode
+            4. Click "Load unpacked" → Select extracted folder
+          files: |
+            tab-keeper-${{ steps.version.outputs.version }}.crx
+            tab-keeper-${{ steps.version.outputs.version }}.zip
+            updates.xml
+            extension.pem
+          draft: false
+          prerelease: false
+
+      - name: Upload PEM key as secure artifact
+        if: steps.generate_key.outputs.key_generated == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ⚠️SECURE-extension-key-${{ steps.version.outputs.version }}
+          path: extension.pem
+          retention-days: 7
+        continue-on-error: true
