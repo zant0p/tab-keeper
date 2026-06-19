@@ -4,7 +4,7 @@
 
 // Configuration - choose variant before building
 // Set to 'AL' for Assisted Living or 'SNF' for Skilled Nursing Facility
-const VARIANT = 'AL'; // CHANGE THIS: 'AL' or 'SNF'
+const VARIANT = 'AL'
 
 // Credentials per variant
 const CREDENTIALS = {
