@@ -82,28 +82,28 @@ chrome.runtime.onStartup.addListener(async () => {
 async function ensureTabsExist() {
   const allTabs = await chrome.tabs.query({});
   
-  // Check primary tab - exact URL match
-  const primaryExists = allTabs.some(tab => tab.url === PRIMARY_URL || tab.url?.startsWith(PRIMARY_URL));
-  if (!primaryExists) {
+  // Find existing primary tab
+  let existingPrimary = allTabs.find(tab => tab.url === PRIMARY_URL || tab.url?.startsWith(PRIMARY_URL));
+  
+  if (existingPrimary) {
+    console.log('[Tab Keeper] Primary tab already exists:', existingPrimary.id);
+    primaryTabId = existingPrimary.id;
+  } else {
     console.log('[Tab Keeper] Primary tab not found - creating it');
     const newTab = await chrome.tabs.create({ url: PRIMARY_URL, active: false });
     primaryTabId = newTab.id;
-  } else {
-    console.log('[Tab Keeper] Primary tab already exists');
-    // Find and store the existing primary tab ID
-    primaryTabId = allTabs.find(tab => tab.url === PRIMARY_URL || tab.url?.startsWith(PRIMARY_URL))?.id;
   }
   
-  // Check secondary tab
-  const secondaryExists = allTabs.some(tab => tab.url === SECONDARY_URL || tab.url?.startsWith(SECONDARY_URL));
-  if (!secondaryExists) {
+  // Find existing secondary tab
+  let existingSecondary = allTabs.find(tab => tab.url === SECONDARY_URL || tab.url?.startsWith(SECONDARY_URL));
+  
+  if (existingSecondary) {
+    console.log('[Tab Keeper] Secondary tab already exists:', existingSecondary.id);
+    secondaryTabId = existingSecondary.id;
+  } else {
     console.log('[Tab Keeper] Secondary tab not found - creating it');
     const newTab = await chrome.tabs.create({ url: SECONDARY_URL, active: false });
     secondaryTabId = newTab.id;
-  } else {
-    console.log('[Tab Keeper] Secondary tab already exists');
-    // Find and store the existing secondary tab ID
-    secondaryTabId = allTabs.find(tab => tab.url === SECONDARY_URL || tab.url?.startsWith(SECONDARY_URL))?.id;
   }
   
   console.log('[Tab Keeper] Tab IDs - Primary:', primaryTabId, 'Secondary:', secondaryTabId);
@@ -430,9 +430,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   
-  // Handle auto-login request
+  // Handle auto-login request - ONLY for primary URL
   if (message.action === 'loginRequired') {
     const creds = getCredentials();
+    
+    // Verify sender is on primary URL (not secondary)
+    const senderUrl = sender.tab?.url;
+    const isPrimaryTab = senderUrl && (
+      senderUrl === PRIMARY_URL ||
+      senderUrl.startsWith(PRIMARY_URL)
+    );
+    
+    if (!isPrimaryTab) {
+      console.log('[Tab Keeper] Auto-login REJECTED - not on primary URL:', senderUrl);
+      sendResponse({ success: false, reason: 'not primary url' });
+      return true;
+    }
     
     console.log('[Tab Keeper] Auto-login approved for primary URL');
     sendResponse({ success: true });
