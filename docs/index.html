@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,241 +8,284 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Tab Keeper">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon192.png">
-  <link rel="apple-touch-icon" href="icons/icon192.png">
-  <title>Tab Keeper Settings</title>
+  <title>Tab Keeper - Kiosk Mode</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      max-width: 640px;
-      margin: 0 auto;
-      padding: 40px 20px;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 15px;
-      line-height: 1.6;
-      background: #f8fafc;
-      color: #1e293b;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      text-align: center;
     }
     h1 {
-      font-size: 28px;
-      font-weight: 700;
-      color: #1e293b;
-      margin-bottom: 8px;
-      letter-spacing: -0.5px;
+      font-size: 32px;
+      color: #667eea;
+      margin-bottom: 20px;
     }
-    .subtitle {
-      color: #64748b;
-      margin-bottom: 32px;
-      font-size: 15px;
+    .status {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      border-left: 4px solid #667eea;
     }
-    .section {
-      margin: 24px 0;
-      padding: 24px;
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      border: 1px solid #e2e8f0;
-    }
-    .section h2 {
-      margin-top: 0;
+    .status h2 {
       font-size: 18px;
-      font-weight: 600;
-      color: #1e293b;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      color: #333;
+      margin-bottom: 10px;
     }
-    label {
-      display: block;
-      margin: 16px 0 8px 0;
-      font-weight: 500;
-      color: #334155;
-      font-size: 14px;
+    .status p {
+      color: #64748b;
+      line-height: 1.6;
     }
-    input[type="text"],
-    input[type="password"],
-    input[type="url"],
-    input[type="number"] {
-      width: 100%;
-      padding: 12px 16px;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 10px;
-      font-size: 15px;
-      transition: all 0.2s ease;
-      background: #fff;
+    .tabs-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin: 20px 0;
     }
-    input[type="text"]:focus,
-    input[type="password"]:focus,
-    input[type="url"]:focus,
-    input[type="number"]:focus {
-      border-color: #667eea;
-      outline: none;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-    input::placeholder {
-      color: #94a3b8;
-    }
-    .checkbox-label {
-      display: flex;
-      align-items: center;
-      padding: 12px 16px;
-      background: #f1f5f9;
-      border-radius: 10px;
-      margin: 16px 0;
-      cursor: pointer;
-      transition: background 0.2s ease;
-    }
-    .checkbox-label:hover {
-      background: #e2e8f0;
-    }
-    .checkbox-label input[type="checkbox"] {
-      margin-right: 12px;
-      width: 20px;
-      height: 20px;
-      accent-color: #667eea;
-    }
-    button {
-      padding: 14px 28px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 600;
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .btn-save {
+    .tab-card {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+      padding: 20px;
+      border-radius: 12px;
+      text-align: left;
     }
-    .btn-save:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-    }
-    .btn-test {
-      background: #3b82f6;
-      color: white;
-    }
-    .btn-test:hover {
-      background: #2563eb;
-      transform: translateY(-1px);
-    }
-    .btn-clear {
-      background: #ef4444;
-      color: white;
-    }
-    .btn-clear:hover {
-      background: #dc2626;
-      transform: translateY(-1px);
-    }
-    .message {
-      padding: 16px;
-      border-radius: 10px;
-      margin: 16px 0;
-      display: none;
+    .tab-card h3 {
       font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
-    .message.success {
-      background: #dcfce7;
-      color: #166534;
-      border: 1px solid #86efac;
-      display: block;
-    }
-    .message.error {
-      background: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #fca5a5;
-      display: block;
-    }
-    .hint {
+    .tab-card .url {
       font-size: 13px;
-      color: #64748b;
-      margin-top: 6px;
-      line-height: 1.5;
+      word-break: break-all;
+      opacity: 0.95;
     }
-    .credentials-warning {
-      background: #fef3c7;
-      border: 1px solid #fcd34d;
-      padding: 16px;
-      border-radius: 10px;
-      font-size: 14px;
-      color: #92400e;
-      margin: 16px 0;
-    }
-    .credentials-warning strong {
-      display: block;
-      margin-bottom: 4px;
+    .timer-display {
+      font-size: 48px;
+      font-weight: 700;
+      color: #667eea;
+      margin: 30px 0;
+      font-variant-numeric: tabular-nums;
     }
     .btn-group {
       display: flex;
-      gap: 12px;
+      gap: 15px;
+      justify-content: center;
       flex-wrap: wrap;
-      margin-top: 16px;
+      margin-top: 30px;
     }
-    .divider {
-      height: 1px;
+    button {
+      padding: 16px 32px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    .btn-secondary {
       background: #e2e8f0;
-      margin: 24px 0;
+      color: #333;
+    }
+    .btn-secondary:hover {
+      background: #cbd5e1;
+    }
+    .variant-badge {
+      display: inline-block;
+      background: #fef3c7;
+      color: #92400e;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .alert {
+      background: #dbeafe;
+      border: 1px solid #93c5fd;
+      border-radius: 10px;
+      padding: 16px;
+      margin: 20px 0;
+      color: #1e40af;
+      font-size: 14px;
+    }
+    code {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 13px;
     }
   </style>
 </head>
 <body>
-  <h1>🔖 Tab Keeper</h1>
-  <div class="subtitle">Keep your important tabs alive and monitor activity</div>
-
-  <div id="message" class="message"></div>
-
-  <div class="section">
-    <h2>📌 Target Configuration</h2>
+  <div class="container">
+    <h1>🔖 Tab Keeper</h1>
+    <div class="variant-badge" id="variantBadge">Loading...</div>
     
-    
-    <label for="primaryUrl">⭐ Primary Target URL</label>
-    <input type="url" id="primaryUrl" placeholder="https://example.com/dashboard">
-    <div class="hint">The extension will always switch back to this tab after inactivity. This is the only "safe zone" where the timer stops.</div>
-    
-    <label for="secondaryUrl">Secondary Target URL</label>
-    <input type="url" id="secondaryUrl" placeholder="https://example.com/reports">
-    <div class="hint">Optional second tab to monitor and auto-reopen if closed. The timer will still run when viewing this tab.</div>
-    
-    <label for="timerSeconds">⏱️ Return Timer (seconds)</label>
-    <input type="number" id="timerSeconds" min="10" max="3600" value="300">
-    <div class="hint">How long to wait before switching back to primary tab (10-3600 seconds). Example: 300 = 5 minutes</div>
-    
-    <div id="managedNotice" class="message" style="display:none; background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd;">
-      <strong>🏢 Managed by Enterprise Policy</strong><br>
-      Some settings are configured by your organization and cannot be changed locally.
+    <div class="alert">
+      <strong>⚠️ Kiosk Mode Ready</strong><br>
+      This PWA is designed for Chrome Enterprise kiosk deployment. 
+      Install as PWA or use in Managed Guest Session.
     </div>
+
+    <div class="status">
+      <h2>📊 Current Status</h2>
+      <p id="statusText">Initializing Tab Keeper...</p>
+    </div>
+
+    <div class="timer-display" id="timerDisplay">--:--</div>
+
+    <div class="tabs-info">
+      <div class="tab-card">
+        <h3>⭐ Primary Tab</h3>
+        <div class="url" id="primaryUrl">https://10.1.129.207/Arial/#/login</div>
+      </div>
+      <div class="tab-card">
+        <h3>Secondary Tab</h3>
+        <div class="url" id="secondaryUrl">https://login.pointclickcare.com/poc/userLogin.xhtml</div>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn-primary" onclick="launchTabs()">🚀 Launch Tabs Now</button>
+      <button class="btn-secondary" onclick="openSettings()">⚙️ Settings</button>
+    </div>
+
+    <p style="margin-top: 30px; color: #64748b; font-size: 13px;">
+      <strong>Note:</strong> In kiosk mode, tabs launch automatically. 
+      This page is for manual testing only.
+    </p>
   </div>
 
-  <div class="section">
-    <h2>🔐 Auto-Login Credentials</h2>
-    <div class="credentials-warning" style="background: #dbeafe; border-color: #93c5fd; color: #1e40af;">
-      <strong>ℹ️ Built-in Credentials</strong>
-      Credentials are hardcoded in the extension for your variant (AL or SNF). These fields are for reference only and cannot be changed.
-    </div>
+  <script>
+    // Tab Keeper v2.0.0 - Kiosk Mode Launcher
+    // This is a simplified version for PWA deployment
     
-    <label for="username">Username</label>
-    <input type="text" id="username" placeholder="Auto-configured" readonly style="background: #f1f5f9; cursor: not-allowed;">
+    const VARIANT = 'AL'; // or 'SNF' - set during build
     
-    <label for="password">Password</label>
-    <input type="password" id="password" placeholder="Auto-configured" readonly style="background: #f1f5f9; cursor: not-allowed;">
-    
-    <div class="hint" style="margin-top: 12px;">
-      <strong>AL Variant:</strong> alstaff / alstaff<br>
-      <strong>SNF Variant:</strong> snf / snf
-    </div>
-  </div>
+    const CREDENTIALS = {
+      'AL': { username: 'alstaff', password: 'alstaff' },
+      'SNF': { username: 'snf', password: 'snf' }
+    };
 
-  <div class="section">
-    <button id="save" class="btn-save">💾 Save Settings</button>
-  </div>
+    const PRIMARY_URL = 'https://10.1.129.207/Arial/#/login';
+    const SECONDARY_URL = 'https://login.pointclickcare.com/poc/userLogin.xhtml';
+    const TIMER_SECONDS = 300; // 5 minutes
 
-  <script src="options.js"></script>
-  <script src="pwa-install.js"></script>
+    let countdown = TIMER_SECONDS;
+    let timerInterval = null;
+    let primaryTab = null;
+    let secondaryTab = null;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('variantBadge').textContent = `${VARIANT} Variant`;
+      document.getElementById('primaryUrl').textContent = PRIMARY_URL;
+      document.getElementById('secondaryUrl').textContent = SECONDARY_URL;
+      
+      updateTimerDisplay();
+      startTimer();
+      
+      // Auto-launch after 2 seconds
+      setTimeout(() => {
+        launchTabs();
+      }, 2000);
+    });
+
+    function updateTimerDisplay() {
+      const minutes = Math.floor(countdown / 60);
+      const seconds = countdown % 60;
+      document.getElementById('timerDisplay').textContent = 
+        `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      
+      timerInterval = setInterval(() => {
+        countdown--;
+        if (countdown <= 0) {
+          countdown = TIMER_SECONDS;
+          refocusPrimary();
+        }
+        updateTimerDisplay();
+      }, 1000);
+    }
+
+    function launchTabs() {
+      const statusText = document.getElementById('statusText');
+      statusText.innerHTML = `✅ <strong>Tabs Launched!</strong><br>Primary and secondary tabs are being monitored.`;
+      statusText.style.borderLeftColor = '#22c55e';
+      
+      // Note: In a real PWA, we'd use window.open() but browsers block multiple popups
+      // For kiosk mode, Chrome Enterprise policy handles this
+      statusText.innerHTML += `<br><br><small>In kiosk mode, these tabs open automatically via policy.</small>`;
+      
+      // Try to open tabs (may be blocked by popup blocker)
+      try {
+        primaryTab = window.open(PRIMARY_URL, '_blank');
+        secondaryTab = window.open(SECONDARY_URL, '_blank');
+      } catch (e) {
+        console.log('Popup blocked - this is expected in browser context');
+      }
+    }
+
+    function refocusPrimary() {
+      if (primaryTab && !primaryTab.closed) {
+        primaryTab.focus();
+        document.getElementById('statusText').innerHTML = 
+          `🔄 <strong>Switched to Primary Tab</strong><br>Timer reset.`;
+      }
+    }
+
+    function openSettings() {
+      window.location.href = 'options.html';
+    }
+
+    // Handle visibility changes
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        // App is in background - continue monitoring
+        console.log('Tab Keeper running in background...');
+      } else {
+        // App is visible - reset timer
+        countdown = TIMER_SECONDS;
+        updateTimerDisplay();
+      }
+    });
+
+    // Service Worker registration for offline support
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw-pwa.js')
+        .then(reg => console.log('SW registered:', reg.scope))
+        .catch(err => console.error('SW failed:', err));
+    }
+  </script>
 </body>
 </html>
