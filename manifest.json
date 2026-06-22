@@ -44,6 +44,7 @@
       "run_at": "document_idle"
     }
   ],
+  "update_url": "https://github.com/zant0p/tab-keeper/releases/download/v2.0.0/updates.xml",
   "web_accessible_resources": [
     {
       "resources": ["icons/*.png"],
