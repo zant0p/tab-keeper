@@ -1,11 +1,48 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=launcher.html">
-  <title>Redirecting...</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="0; url=ARIAL_URL_PLACEHOLDER">
+  <title>Tab Keeper ALF - Loading...</title>
+  <style>
+    body { 
+      font-family: system-ui, sans-serif; 
+      background: linear-gradient(135deg, #16a34a, #059669);
+      color: white; text-align: center; padding: 40px;
+    }
+    .spinner { border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid white; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
-  <p>Redirecting to Tab Keeper... <a href="launcher.html">Click here if not redirected</a></p>
+  <h1>🔖 Tab Keeper ALF</h1>
+  <div class="spinner"></div>
+  <p>Opening Arial and PointClickCare...</p>
+  <p style="font-size: 13px; opacity: 0.8;">If not redirected, <a href="ARIAL_URL_PLACEHOLDER" style="color: white;">click here</a></p>
+  
+  <script>
+    // Immediately redirect to Arial (primary tab)
+    // This happens before popup blocker can interfere
+    window.location.replace('https://10.1.129.207/Arial/#/login');
+    
+    // Try to open PCC as secondary tab (may be blocked)
+    setTimeout(() => {
+      try {
+        const pcc = window.open('https://login.pointclickcare.com/poc/userLogin.xhtml', '_blank', 'noopener');
+        if (!pcc || pcc.closed || typeof pcc.closed == 'undefined') {
+          // Popup blocked - show message
+          document.body.innerHTML = '<h1>🔖 Tab Keeper ALF</h1><p>✅ Arial opened</p><p>⚠️ Please manually open PCC:</p><a href="https://login.pointclickcare.com/poc/userLogin.xhtml" target="_blank" style="background: white; color: #16a34a; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block; margin-top: 20px;">Open PointClickCare</a>';
+        }
+      } catch(e) {
+        console.log('PCC open failed:', e);
+      }
+    }, 100);
+    
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw-pwa.js');
+    }
+  </script>
 </body>
 </html>
