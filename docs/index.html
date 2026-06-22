@@ -3,12 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#667eea">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Tab Keeper">
-  <link rel="manifest" href="manifest.webmanifest">
-  <title>Tab Keeper - Kiosk Mode</title>
+  <title>Tab Keeper - Select Variant</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -24,267 +19,59 @@
       background: white;
       border-radius: 20px;
       padding: 40px;
-      max-width: 600px;
+      max-width: 500px;
       width: 100%;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
       text-align: center;
     }
-    h1 {
-      font-size: 32px;
-      color: #667eea;
-      margin-bottom: 20px;
-    }
-    .status {
-      background: #f8fafc;
-      border-radius: 12px;
-      padding: 20px;
-      margin: 20px 0;
-      border-left: 4px solid #667eea;
-    }
-    .status h2 {
-      font-size: 18px;
-      color: #333;
-      margin-bottom: 10px;
-    }
-    .status p {
-      color: #64748b;
-      line-height: 1.6;
-    }
-    .tabs-info {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
-      margin: 20px 0;
-    }
-    .tab-card {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 20px;
-      border-radius: 12px;
-      text-align: left;
-    }
-    .tab-card h3 {
-      font-size: 14px;
-      opacity: 0.9;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .tab-card .url {
-      font-size: 13px;
-      word-break: break-all;
-      opacity: 0.95;
-    }
-    .timer-display {
-      font-size: 48px;
-      font-weight: 700;
-      color: #667eea;
-      margin: 30px 0;
-      font-variant-numeric: tabular-nums;
-    }
-    .btn-group {
-      display: flex;
-      gap: 15px;
-      justify-content: center;
-      flex-wrap: wrap;
-      margin-top: 30px;
-    }
-    button {
-      padding: 16px 32px;
-      border: none;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
+    h1 { font-size: 32px; color: #667eea; margin-bottom: 10px; }
+    p { color: #64748b; margin-bottom: 30px; }
+    .btn-group { display: grid; gap: 15px; }
+    .btn {
+      padding: 24px; border: none; border-radius: 12px;
+      font-size: 20px; font-weight: 700; cursor: pointer;
+      text-decoration: none; color: white;
       transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
-    .btn-primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    }
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-    }
-    .btn-secondary {
-      background: #e2e8f0;
-      color: #333;
-    }
-    .btn-secondary:hover {
-      background: #cbd5e1;
-    }
-    .variant-badge {
-      display: inline-block;
-      background: #fef3c7;
-      color: #92400e;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 20px;
-    }
-    .alert {
-      background: #dbeafe;
-      border: 1px solid #93c5fd;
-      border-radius: 10px;
-      padding: 16px;
-      margin: 20px 0;
-      color: #1e40af;
-      font-size: 14px;
-    }
-    code {
-      background: #1e293b;
-      color: #e2e8f0;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 13px;
+    .btn:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+    .btn-al { background: linear-gradient(135deg, #16a34a 0%, #059669 100%); }
+    .btn-snf { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); }
+    .info {
+      margin-top: 30px; padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 13px; color: #64748b;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>🔖 Tab Keeper</h1>
-    <div class="variant-badge" id="variantBadge">Loading...</div>
+    <p>Select your facility variant for kiosk mode</p>
     
-    <div class="alert">
-      <strong>⚠️ Kiosk Mode Ready</strong><br>
-      This PWA is designed for Chrome Enterprise kiosk deployment. 
-      Install as PWA or use in Managed Guest Session.
-    </div>
-
-    <div class="status">
-      <h2>📊 Current Status</h2>
-      <p id="statusText">Initializing Tab Keeper...</p>
-    </div>
-
-    <div class="timer-display" id="timerDisplay">--:--</div>
-
-    <div class="tabs-info">
-      <div class="tab-card">
-        <h3>⭐ Primary Tab</h3>
-        <div class="url" id="primaryUrl">https://10.1.129.207/Arial/#/login</div>
-      </div>
-      <div class="tab-card">
-        <h3>Secondary Tab</h3>
-        <div class="url" id="secondaryUrl">https://login.pointclickcare.com/poc/userLogin.xhtml</div>
-      </div>
-    </div>
-
     <div class="btn-group">
-      <button class="btn-primary" onclick="launchTabs()">🚀 Launch Tabs Now</button>
-      <button class="btn-secondary" onclick="openSettings()">⚙️ Settings</button>
+      <a href="index-al.html" class="btn btn-al">
+        🏠 AL Variant<br>
+        <span style="font-size: 14px; font-weight: normal;">Assisted Living</span>
+      </a>
+      
+      <a href="index-snf.html" class="btn btn-snf">
+        🏥 SNF Variant<br>
+        <span style="font-size: 14px; font-weight: normal;">Skilled Nursing Facility</span>
+      </a>
     </div>
-
-    <p style="margin-top: 30px; color: #64748b; font-size: 13px;">
-      <strong>Note:</strong> In kiosk mode, tabs launch automatically. 
-      This page is for manual testing only.
-    </p>
+    
+    <div class="info">
+      <strong>Both variants open:</strong><br>
+      Primary: https://10.1.129.207/Arial/#/login<br>
+      Secondary: https://login.pointclickcare.com/
+    </div>
   </div>
 
   <script>
-    // Tab Keeper v2.0.0 - Kiosk Mode Launcher
-    // This is a simplified version for PWA deployment
-    
-    const VARIANT = 'AL'; // or 'SNF' - set during build
-    
-    const CREDENTIALS = {
-      'AL': { username: 'alstaff', password: 'alstaff' },
-      'SNF': { username: 'snf', password: 'snf' }
-    };
-
-    const PRIMARY_URL = 'https://10.1.129.207/Arial/#/login';
-    const SECONDARY_URL = 'https://login.pointclickcare.com/poc/userLogin.xhtml';
-    const TIMER_SECONDS = 300; // 5 minutes
-
-    let countdown = TIMER_SECONDS;
-    let timerInterval = null;
-    let primaryTab = null;
-    let secondaryTab = null;
-
-    // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('variantBadge').textContent = `${VARIANT} Variant`;
-      document.getElementById('primaryUrl').textContent = PRIMARY_URL;
-      document.getElementById('secondaryUrl').textContent = SECONDARY_URL;
-      
-      updateTimerDisplay();
-      startTimer();
-      
-      // Auto-launch after 2 seconds
-      setTimeout(() => {
-        launchTabs();
-      }, 2000);
-    });
-
-    function updateTimerDisplay() {
-      const minutes = Math.floor(countdown / 60);
-      const seconds = countdown % 60;
-      document.getElementById('timerDisplay').textContent = 
-        `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    }
-
-    function startTimer() {
-      if (timerInterval) clearInterval(timerInterval);
-      
-      timerInterval = setInterval(() => {
-        countdown--;
-        if (countdown <= 0) {
-          countdown = TIMER_SECONDS;
-          refocusPrimary();
-        }
-        updateTimerDisplay();
-      }, 1000);
-    }
-
-    function launchTabs() {
-      const statusText = document.getElementById('statusText');
-      statusText.innerHTML = `✅ <strong>Tabs Launched!</strong><br>Primary and secondary tabs are being monitored.`;
-      statusText.style.borderLeftColor = '#22c55e';
-      
-      // Note: In a real PWA, we'd use window.open() but browsers block multiple popups
-      // For kiosk mode, Chrome Enterprise policy handles this
-      statusText.innerHTML += `<br><br><small>In kiosk mode, these tabs open automatically via policy.</small>`;
-      
-      // Try to open tabs (may be blocked by popup blocker)
-      try {
-        primaryTab = window.open(PRIMARY_URL, '_blank');
-        secondaryTab = window.open(SECONDARY_URL, '_blank');
-      } catch (e) {
-        console.log('Popup blocked - this is expected in browser context');
-      }
-    }
-
-    function refocusPrimary() {
-      if (primaryTab && !primaryTab.closed) {
-        primaryTab.focus();
-        document.getElementById('statusText').innerHTML = 
-          `🔄 <strong>Switched to Primary Tab</strong><br>Timer reset.`;
-      }
-    }
-
-    function openSettings() {
-      window.location.href = 'options.html';
-    }
-
-    // Handle visibility changes
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        // App is in background - continue monitoring
-        console.log('Tab Keeper running in background...');
-      } else {
-        // App is visible - reset timer
-        countdown = TIMER_SECONDS;
-        updateTimerDisplay();
-      }
-    });
-
-    // Service Worker registration for offline support
+    // Register service worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw-pwa.js')
-        .then(reg => console.log('SW registered:', reg.scope))
-        .catch(err => console.error('SW failed:', err));
+      navigator.serviceWorker.register('sw-pwa.js');
     }
   </script>
 </body>
