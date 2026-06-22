@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tab Keeper - iFrame Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: system-ui, sans-serif; 
+      background: #f8fafc;
+      padding: 20px;
+    }
+    .header {
+      background: linear-gradient(135deg, #16a34a, #059669);
+      color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;
+    }
+    h1 { font-size: 24px; margin-bottom: 8px; }
+    .status { background: white; border: 2px solid #16a34a; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+    .log { font-family: monospace; font-size: 13px; color: #059669; line-height: 1.8; }
+    .iframe-container {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: calc(100vh - 250px);
+    }
+    .iframe-box {
+      background: white; border-radius: 12px; overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      display: flex; flex-direction: column;
+    }
+    .iframe-header {
+      background: #f1f5f9; padding: 12px; border-bottom: 1px solid #e2e8f0;
+      font-weight: 600; color: #333; font-size: 14px;
+    }
+    iframe {
+      flex: 1; border: none; width: 100%; height: 100%;
+      background: white;
+    }
+    .error {
+      background: #fee2e2; border: 1px solid #ef4444;
+      color: #991b1b; padding: 12px; border-radius: 8px;
+      margin: 10px 0; font-size: 14px;
+    }
+    .success {
+      background: #dcfce7; border: 1px solid #22c55e;
+      color: #166534; padding: 12px; border-radius: 8px;
+      margin: 10px 0; font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🔖 Tab Keeper - iFrame Test</h1>
+    <p>Testing if Arial and PointClickCare allow embedding in iframes</p>
+  </div>
+
+  <div class="status">
+    <strong>📊 Status:</strong>
+    <div class="log" id="log">Loading...</div>
+  </div>
+
+  <div class="iframe-container">
+    <div class="iframe-box">
+      <div class="iframe-header">⭐ Arial (ALF)</div>
+      <iframe id="arial-frame" src="https://10.1.129.207/Arial/#/login" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+    </div>
+    <div class="iframe-box">
+      <div class="iframe-header">🏥 PointClickCare</div>
+      <iframe id="pcc-frame" src="https://login.pointclickcare.com/poc/userLogin.xhtml" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+    </div>
+  </div>
+
+  <script>
+    const log = document.getElementById('log');
+    const arialFrame = document.getElementById('arial-frame');
+    const pccFrame = document.getElementById('pcc-frame');
+    
+    function addLog(msg, type = 'info') {
+      const t = new Date().toLocaleTimeString();
+      const color = type === 'error' ? '#991b1b' : (type === 'success' ? '#166534' : '#059669');
+      log.innerHTML += `<span style="color: ${color}">[${t}] ${msg}</span><br>`;
+      log.scrollTop = log.scrollHeight;
+    }
+
+    // Test Arial iframe
+    arialFrame.onload = () => {
+      addLog('✅ Arial iframe loaded successfully!', 'success');
+      addLog('   Arial allows embedding!');
+    };
+    
+    arialFrame.onerror = () => {
+      addLog('❌ Arial iframe failed to load', 'error');
+    };
+
+    // Test PCC iframe
+    pccFrame.onload = () => {
+      addLog('✅ PCC iframe loaded successfully!', 'success');
+      addLog('   PointClickCare allows embedding!');
+    };
+    
+    pccFrame.onerror = () => {
+      addLog('❌ PCC iframe failed to load', 'error');
+    };
+
+    // Check for X-Frame-Options errors
+    setTimeout(() => {
+      try {
+        // Try to access iframe content (will fail if blocked)
+        const arialContent = arialFrame.contentWindow.document;
+        addLog('🔍 Can access Arial iframe content: YES', 'success');
+      } catch(e) {
+        addLog('⚠️ Cannot access Arial iframe content (CORS/X-Frame-Options)', 'error');
+        addLog(`   Error: ${e.message}`);
+        addLog('   Site blocks embedding or is cross-origin');
+      }
+
+      try {
+        const pccContent = pccFrame.contentWindow.document;
+        addLog('🔍 Can access PCC iframe content: YES', 'success');
+      } catch(e) {
+        addLog('⚠️ Cannot access PCC iframe content (CORS/X-Frame-Options)', 'error');
+        addLog(`   Error: ${e.message}`);
+        addLog('   Site blocks embedding or is cross-origin');
+      }
+    }, 3000);
+
+    addLog('🚀 Testing iframe embedding...');
+    addLog('Loading Arial...');
+    addLog('Loading PointClickCare...');
+    addLog('Wait 3 seconds for results...');
+  </script>
+</body>
+</html>
