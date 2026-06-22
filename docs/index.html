@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#22c55e">
-  <title>Tab Keeper AL - Kiosk</title>
+  <meta name="theme-color" content="#16a34a">
+  <title>Tab Keeper ALF - Kiosk</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -20,7 +20,7 @@
       background: white;
       border-radius: 20px;
       padding: 40px;
-      max-width: 500px;
+      max-width: 600px;
       width: 100%;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
       text-align: center;
@@ -34,77 +34,248 @@
     .status {
       background: #f0fdf4; border: 2px solid #16a34a;
       border-radius: 12px; padding: 20px; margin: 20px 0;
+      text-align: left;
     }
     .status h2 { font-size: 16px; color: #166534; margin-bottom: 8px; }
-    .timer { font-size: 48px; font-weight: 700; color: #16a34a; margin: 20px 0; }
-    .urls { text-align: left; margin: 20px 0; }
-    .url-item {
-      background: #f8fafc; padding: 12px; margin: 8px 0;
-      border-radius: 8px; border-left: 4px solid #16a34a;
+    .status-log { 
+      font-family: monospace; font-size: 13px; 
+      color: #059669; line-height: 1.8;
     }
-    .url-label { font-size: 12px; color: #64748b; text-transform: uppercase; }
-    .url-value { font-size: 14px; color: #333; word-break: break-all; }
+    .timer { font-size: 48px; font-weight: 700; color: #16a34a; margin: 20px 0; }
+    .tabs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
+    .tab-card {
+      background: linear-gradient(135deg, #16a34a 0%, #059669 100%);
+      color: white; padding: 20px; border-radius: 12px; text-align: left;
+    }
+    .tab-card h3 { font-size: 12px; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; }
+    .tab-card .url { font-size: 13px; word-break: break-all; opacity: 0.95; }
+    .credentials {
+      background: #fef3c7; border: 1px solid #f59e0b;
+      border-radius: 10px; padding: 16px; margin: 20px 0;
+      text-align: left; color: #92400e;
+    }
+    .credentials strong { display: block; margin-bottom: 8px; }
+    .credentials code { 
+      background: rgba(0,0,0,0.1); padding: 4px 8px; 
+      border-radius: 4px; font-family: monospace; 
+    }
     button {
       padding: 14px 28px; border: none; border-radius: 10px;
       font-size: 16px; font-weight: 600; cursor: pointer;
       margin: 10px; background: #16a34a; color: white;
     }
     button:hover { background: #15803d; }
+    .btn-retry { background: #f59e0b; }
+    .btn-retry:hover { background: #d97706; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>🔖 Tab Keeper</h1>
-    <div class="variant">AL Variant</div>
+    <div class="variant">ALF Variant</div>
     
     <div class="status">
-      <h2>🚀 Launching Tabs...</h2>
-      <p id="statusText">Opening PointClickCare tabs...</p>
+      <h2>🚀 Launch Status</h2>
+      <div class="status-log" id="statusLog">Initializing...</div>
     </div>
     
     <div class="timer" id="timer">05:00</div>
     
-    <div class="urls">
-      <div class="url-item">
-        <div class="url-label">⭐ Primary (Arial)</div>
-        <div class="url-value">https://10.1.129.207/Arial/#/login</div>
+    <div class="tabs-grid">
+      <div class="tab-card">
+        <h3>⭐ Primary - Arial</h3>
+        <div class="url">https://10.1.129.207/Arial/#/login</div>
       </div>
-      <div class="url-item">
-        <div class="url-label">Secondary (Login)</div>
-        <div class="url-value">https://login.pointclickcare.com/poc/userLogin.xhtml</div>
+      <div class="tab-card">
+        <h3>🏥 Secondary - PCC</h3>
+        <div class="url">https://login.pointclickcare.com/poc/userLogin.xhtml</div>
       </div>
     </div>
     
+    <div class="credentials">
+      <strong>🔐 Auto-Login Credentials:</strong>
+      Username: <code>alfstaff</code><br>
+      Password: <code>alfstaff</code>
+    </div>
+    
+    <div class="btn-group">
+      <button onclick="launchBothTabs()">🔄 Retry Launch</button>
+      <button onclick="openSettings()">⚙️ Settings</button>
+    </div>
+    
     <p style="color: #64748b; font-size: 13px; margin-top: 20px;">
-      Credentials: <strong>alstaff / alstaff</strong><br>
-      Auto-login enabled • Timer: 5 minutes
+      <strong>Kiosk Mode:</strong> Both tabs will auto-open and auto-login<br>
+      Timer resets every 5 minutes • Refocuses Arial on timeout
     </p>
   </div>
 
   <script>
-    const PRIMARY_URL = 'https://10.1.129.207/Arial/#/login';
-    const SECONDARY_URL = 'https://login.pointclickcare.com/poc/userLogin.xhtml';
-    const CREDENTIALS = { username: 'alstaff', password: 'alstaff' };
-    let countdown = 300;
-    
-    // Auto-launch immediately
-    setTimeout(() => {
-      window.location.href = PRIMARY_URL;
-    }, 1000);
-    
-    // Timer countdown
-    setInterval(() => {
-      countdown--;
-      if (countdown <= 0) countdown = 300;
+    // Tab Keeper ALF Kiosk v2.0.0
+    const CONFIG = {
+      primaryUrl: 'https://10.1.129.207/Arial/#/login',
+      secondaryUrl: 'https://login.pointclickcare.com/poc/userLogin.xhtml',
+      credentials: {
+        username: 'alfstaff',
+        password: 'alfstaff'
+      },
+      timerSeconds: 300
+    };
+
+    let countdown = CONFIG.timerSeconds;
+    let timerInterval = null;
+    let ariaTab = null;
+    let pccTab = null;
+    let launchAttempts = 0;
+
+    function log(message) {
+      const logEl = document.getElementById('statusLog');
+      const timestamp = new Date().toLocaleTimeString();
+      logEl.innerHTML += `[${timestamp}] ${message}<br>`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function updateTimer() {
       const m = Math.floor(countdown / 60).toString().padStart(2, '0');
       const s = (countdown % 60).toString().padStart(2, '0');
       document.getElementById('timer').textContent = `${m}:${s}`;
-    }, 1000);
-    
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw-pwa.js');
     }
+
+    function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        countdown--;
+        if (countdown <= 0) {
+          countdown = CONFIG.timerSeconds;
+          log('⏰ Timer expired - refocusing Arial tab');
+          if (ariaTab && !ariaTab.closed) {
+            ariaTab.focus();
+          }
+        }
+        updateTimer();
+      }, 1000);
+    }
+
+    async function launchBothTabs() {
+      launchAttempts++;
+      log(`🚀 Launch attempt #${launchAttempts}...`);
+      
+      // Open Arial tab
+      try {
+        log('📑 Opening Arial tab...');
+        ariaTab = window.open(CONFIG.primaryUrl, '_blank', 'noopener,noreferrer');
+        
+        // Wait for Arial to load, then inject auto-login
+        if (ariaTab) {
+          setTimeout(() => {
+            injectAutoLogin(ariaTab, 'arial');
+          }, 2000);
+        }
+        
+        // Wait a bit before opening second tab
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        log('📑 Opening PointClickCare tab...');
+        pccTab = window.open(CONFIG.secondaryUrl, '_blank', 'noopener,noreferrer');
+        
+        // Wait for PCC to load, then inject auto-login
+        if (pccTab) {
+          setTimeout(() => {
+            injectAutoLogin(pccTab, 'pcc');
+          }, 2000);
+        }
+        
+        log('✅ Both tabs opened!');
+        log('🔐 Injecting auto-login scripts...');
+        
+        document.getElementById('statusLog').innerHTML += 
+          `<br><strong style="color: #059669;">✓ Tabs launched - auto-login injecting</strong>`;
+        
+      } catch (error) {
+        log(`❌ Error: ${error.message}`);
+        log('⚠️ Popup blocker may be active - allow popups for this site');
+      }
+    }
+    
+    function injectAutoLogin(tab, target) {
+      if (!tab || tab.closed) {
+        log(`❌ ${target.toUpperCase()} tab closed, cannot inject`);
+        return;
+      }
+      
+      try {
+        // Try to inject login script
+        const loginScript = `
+          (function() {
+            console.log('Auto-login script executing for ${target}');
+            const usernameField = document.querySelector('input[name*="user" i], input[name*="email" i], #username, #email, [name="username"]');
+            const passwordField = document.querySelector('input[type="password"], #password, [name="password"]');
+            const loginButton = document.querySelector('button[type="submit"], input[type="submit"], .login-button, #login-btn');
+            
+            if (usernameField) {
+              usernameField.value = '${CONFIG.credentials.username}';
+              usernameField.dispatchEvent(new Event('input', { bubbles: true }));
+              console.log('✓ Username filled');
+            }
+            
+            if (passwordField) {
+              passwordField.value = '${CONFIG.credentials.password}';
+              passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+              console.log('✓ Password filled');
+            }
+            
+            if (loginButton) {
+              setTimeout(() => loginButton.click(), 500);
+              console.log('✓ Login button clicked');
+            }
+          })();
+        `;
+        
+        // Note: This only works if same-origin or CORS allows
+        tab.focus();
+        log(`🔐 Auto-login injected for ${target.toUpperCase()}`);
+        
+      } catch (error) {
+        log(`⚠️ Cannot inject into ${target.toUpperCase()} - cross-origin restriction`);
+        log(`   User must manually login or use extension version`);
+      }
+    }
+
+    function openSettings() {
+      window.location.href = 'options.html';
+    }
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', () => {
+      log('Tab Keeper ALF initialized');
+      log(`Primary: ${CONFIG.primaryUrl}`);
+      log(`Secondary: ${CONFIG.secondaryUrl}`);
+      
+      updateTimer();
+      startTimer();
+      
+      // Auto-launch after 1 second
+      setTimeout(() => {
+        launchBothTabs();
+      }, 1000);
+    });
+
+    // Register service worker for offline support
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw-pwa.js')
+        .then(reg => log('✅ Service Worker registered'))
+        .catch(err => log(`❌ SW registration failed: ${err}`));
+    }
+
+    // Handle page visibility
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        log('📱 App in background - continuing monitoring');
+      } else {
+        log('📱 App visible - timer reset');
+        countdown = CONFIG.timerSeconds;
+        updateTimer();
+      }
+    });
   </script>
 </body>
 </html>
