@@ -1,368 +1,248 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tab Keeper v2.0.0 - Download Package</title>
+  <meta name="theme-color" content="#667eea">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Tab Keeper">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon192.png">
+  <link rel="apple-touch-icon" href="icons/icon192.png">
+  <title>Tab Keeper Settings</title>
   <style>
     * {
       box-sizing: border-box;
-      margin: 0;
-      padding: 0;
     }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      padding: 40px 20px;
-    }
-    .container {
-      max-width: 900px;
+      max-width: 640px;
       margin: 0 auto;
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-      overflow: hidden;
+      padding: 40px 20px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      background: #f8fafc;
+      color: #1e293b;
     }
-    .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 40px;
-      text-align: center;
-    }
-    .header h1 {
-      font-size: 32px;
-      margin-bottom: 10px;
+    h1 {
+      font-size: 28px;
       font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
     }
-    .header p {
-      font-size: 16px;
-      opacity: 0.95;
-    }
-    .version-badge {
-      display: inline-block;
-      background: rgba(255,255,255,0.2);
-      padding: 6px 16px;
-      border-radius: 20px;
-      font-size: 14px;
-      margin-top: 10px;
-      backdrop-filter: blur(10px);
-    }
-    .content {
-      padding: 40px;
+    .subtitle {
+      color: #64748b;
+      margin-bottom: 32px;
+      font-size: 15px;
     }
     .section {
-      margin-bottom: 40px;
-    }
-    .section h2 {
-      font-size: 24px;
-      color: #667eea;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .file-list {
-      list-style: none;
-      background: #f8fafc;
-      border-radius: 12px;
-      padding: 20px;
+      margin: 24px 0;
+      padding: 24px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
       border: 1px solid #e2e8f0;
     }
-    .file-list li {
-      padding: 12px 16px;
-      margin-bottom: 8px;
-      background: white;
-      border-radius: 8px;
+    .section h2 {
+      margin-top: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: #1e293b;
       display: flex;
       align-items: center;
-      gap: 12px;
-      transition: all 0.2s ease;
+      gap: 8px;
     }
-    .file-list li:hover {
-      transform: translateX(4px);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    .file-icon {
-      font-size: 24px;
-      width: 32px;
-      text-align: center;
-    }
-    .file-name {
-      flex: 1;
+    label {
+      display: block;
+      margin: 16px 0 8px 0;
       font-weight: 500;
+      color: #334155;
+      font-size: 14px;
     }
-    .file-size {
-      color: #64748b;
-      font-size: 13px;
-    }
-    .download-btn {
-      display: inline-block;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 14px 28px;
+    input[type="text"],
+    input[type="password"],
+    input[type="url"],
+    input[type="number"] {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1.5px solid #e2e8f0;
       border-radius: 10px;
-      text-decoration: none;
+      font-size: 15px;
+      transition: all 0.2s ease;
+      background: #fff;
+    }
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    input[type="url"]:focus,
+    input[type="number"]:focus {
+      border-color: #667eea;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    input::placeholder {
+      color: #94a3b8;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      background: #f1f5f9;
+      border-radius: 10px;
+      margin: 16px 0;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .checkbox-label:hover {
+      background: #e2e8f0;
+    }
+    .checkbox-label input[type="checkbox"] {
+      margin-right: 12px;
+      width: 20px;
+      height: 20px;
+      accent-color: #667eea;
+    }
+    button {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 15px;
       font-weight: 600;
       transition: all 0.2s ease;
-      margin: 10px 10px 10px 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
     }
-    .download-btn:hover {
+    .btn-save {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+    .btn-save:hover {
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
     }
-    .download-btn.secondary {
-      background: #e2e8f0;
-      color: #333;
+    .btn-test {
+      background: #3b82f6;
+      color: white;
     }
-    .download-btn.secondary:hover {
-      background: #cbd5e1;
+    .btn-test:hover {
+      background: #2563eb;
+      transform: translateY(-1px);
     }
-    .docs-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px;
-      margin-top: 20px;
+    .btn-clear {
+      background: #ef4444;
+      color: white;
     }
-    .doc-card {
-      background: white;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 20px;
-      transition: all 0.2s ease;
+    .btn-clear:hover {
+      background: #dc2626;
+      transform: translateY(-1px);
     }
-    .doc-card:hover {
-      border-color: #667eea;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
-      transform: translateY(-2px);
-    }
-    .doc-card h3 {
-      font-size: 16px;
-      color: #667eea;
-      margin-bottom: 8px;
-    }
-    .doc-card p {
+    .message {
+      padding: 16px;
+      border-radius: 10px;
+      margin: 16px 0;
+      display: none;
       font-size: 14px;
+    }
+    .message.success {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+      display: block;
+    }
+    .message.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+      display: block;
+    }
+    .hint {
+      font-size: 13px;
       color: #64748b;
+      margin-top: 6px;
       line-height: 1.5;
     }
-    .doc-link {
-      display: inline-block;
-      margin-top: 12px;
-      color: #667eea;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 14px;
-    }
-    .doc-link:hover {
-      text-decoration: underline;
-    }
-    .alert {
-      padding: 16px 20px;
-      border-radius: 10px;
-      margin: 20px 0;
-      border-left: 4px solid;
-    }
-    .alert-info {
-      background: #dbeafe;
-      border-color: #3b82f6;
-      color: #1e40af;
-    }
-    .alert-warning {
+    .credentials-warning {
       background: #fef3c7;
-      border-color: #f59e0b;
-      color: #92400e;
-    }
-    .quick-start {
-      background: #f8fafc;
-      border-radius: 12px;
-      padding: 24px;
-      border: 1px solid #e2e8f0;
-    }
-    .quick-start ol {
-      margin-left: 20px;
-      margin-top: 12px;
-    }
-    .quick-start li {
-      margin-bottom: 8px;
-    }
-    code {
-      background: #1e293b;
-      color: #e2e8f0;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-family: 'Courier New', monospace;
-      font-size: 13px;
-    }
-    .footer {
-      background: #f8fafc;
-      padding: 20px 40px;
-      text-align: center;
-      color: #64748b;
+      border: 1px solid #fcd34d;
+      padding: 16px;
+      border-radius: 10px;
       font-size: 14px;
-      border-top: 1px solid #e2e8f0;
+      color: #92400e;
+      margin: 16px 0;
     }
-    @media (max-width: 600px) {
-      .header h1 {
-        font-size: 24px;
-      }
-      .content {
-        padding: 20px;
-      }
-      .docs-grid {
-        grid-template-columns: 1fr;
-      }
+    .credentials-warning strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    .divider {
+      height: 1px;
+      background: #e2e8f0;
+      margin: 24px 0;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>🔖 Tab Keeper</h1>
-      <p>Chrome Extension + Progressive Web App</p>
-      <div class="version-badge">Version 2.0.0</div>
-    </div>
+  <h1>🔖 Tab Keeper</h1>
+  <div class="subtitle">Keep your important tabs alive and monitor activity</div>
 
-    <div class="content">
-      <!-- Quick Start -->
-      <div class="section">
-        <h2>🚀 Quick Start</h2>
-        <div class="quick-start">
-          <p><strong>Choose your deployment method:</strong></p>
-          <ol>
-            <li><strong>Chrome Extension</strong> - Enterprise desktops, tab management, auto-login</li>
-            <li><strong>PWA</strong> - Mobile devices, offline support, personal use</li>
-            <li><strong>Isolated Web App</strong> - Enterprise PWA with Chrome Admin Console</li>
-          </ol>
-          <p style="margin-top: 16px;">
-            <a href="tab-keeper-2.0.0.zip" class="download-btn">📦 Download Extension ZIP</a>
-            <a href="#documentation" class="download-btn secondary">📚 View Documentation</a>
-          </p>
-        </div>
-      </div>
+  <div id="message" class="message"></div>
 
-      <!-- Download Files -->
-      <div class="section">
-        <h2>📦 Download Files</h2>
-        <ul class="file-list">
-          <li>
-            <span class="file-icon">📦</span>
-            <span class="file-name">tab-keeper-2.0.0.zip</span>
-            <span class="file-size">54 KB</span>
-            <a href="tab-keeper-2.0.0.zip" class="download-btn" style="padding: 8px 16px; font-size: 13px;">Download</a>
-          </li>
-          <li>
-            <span class="file-icon">📝</span>
-            <span class="file-name">updates.xml</span>
-            <span class="file-size">Auto-update manifest</span>
-            <a href="updates.xml" class="download-btn secondary" style="padding: 8px 16px; font-size: 13px;">View</a>
-          </li>
-          <li>
-            <span class="file-icon">ℹ️</span>
-            <span class="file-name">DEPLOYMENT-INFO.txt</span>
-            <span class="file-size">Quick reference</span>
-            <a href="DEPLOYMENT-INFO.txt" class="download-btn secondary" style="padding: 8px 16px; font-size: 13px;">View</a>
-          </li>
-        </ul>
-      </div>
-
-      <!-- Key Information -->
-      <div class="section">
-        <h2>🔑 Key Information</h2>
-        <div class="alert alert-info">
-          <strong>Extension ID:</strong> <code>4nsinwkb7e5khfdund5hlutwfa</code><br>
-          <strong>Version:</strong> 2.0.0<br>
-          <strong>GitHub:</strong> <a href="https://github.com/zant0p/tab-keeper/tree/dev" target="_blank" style="color: #3b82f6;">github.com/zant0p/tab-keeper</a>
-        </div>
-      </div>
-
-      <!-- Documentation -->
-      <div class="section" id="documentation">
-        <h2>📚 Documentation</h2>
-        
-        <h3 style="font-size: 18px; margin: 24px 0 16px; color: #333;">Start Here</h3>
-        <div class="docs-grid">
-          <div class="doc-card">
-            <h3>📋 PUSH-SUMMARY.md</h3>
-            <p>What's new in v2.0.0, complete overview of changes and next steps.</p>
-            <a href="docs/PUSH-SUMMARY.md" class="doc-link">Read →</a>
-          </div>
-          <div class="doc-card">
-            <h3>⚡ PWA-QUICK-START.md</h3>
-            <p>5-minute PWA setup guide. Test locally before deploying.</p>
-            <a href="docs/PWA-QUICK-START.md" class="doc-link">Read →</a>
-          </div>
-          <div class="doc-card">
-            <h3>✅ PWA-ENTERPRISE-CHECKLIST.md</h3>
-            <p>Step-by-step checklist for enterprise deployment.</p>
-            <a href="docs/PWA-ENTERPRISE-CHECKLIST.md" class="doc-link">Read →</a>
-          </div>
-        </div>
-
-        <h3 style="font-size: 18px; margin: 24px 0 16px; color: #333;">Deployment Guides</h3>
-        <div class="docs-grid">
-          <div class="doc-card">
-            <h3>☁️ AZURE-BLOB-STORAGE-DEPLOYMENT.md</h3>
-            <p>Complete guide for hosting CRX files on Azure Blob Storage.</p>
-            <a href="docs/AZURE-BLOB-STORAGE-DEPLOYMENT.md" class="doc-link">Read →</a>
-          </div>
-          <div class="doc-card">
-            <h3>🌐 PWA-DEPLOYMENT.md</h3>
-            <p>PWA hosting options: Azure Static Web Apps, GitHub Pages, Netlify.</p>
-            <a href="docs/PWA-DEPLOYMENT.md" class="doc-link">Read →</a>
-          </div>
-          <div class="doc-card">
-            <h3>📦 PWA-WEB-BUNDLE-GUIDE.md</h3>
-            <p>Create web bundles for Chrome Isolated Web Apps.</p>
-            <a href="docs/PWA-WEB-BUNDLE-GUIDE.md" class="doc-link">Read →</a>
-          </div>
-          <div class="doc-card">
-            <h3>🏢 MANAGED-GUEST-SESSION-POLICIES.md</h3>
-            <p>Chrome Enterprise policy templates for Managed Guest Sessions.</p>
-            <a href="docs/MANAGED-GUEST-SESSION-POLICIES.md" class="doc-link">Read →</a>
-          </div>
-        </div>
-
-        <h3 style="font-size: 18px; margin: 24px 0 16px; color: #333;">Troubleshooting</h3>
-        <div class="docs-grid">
-          <div class="doc-card">
-            <h3>🔧 CRX-ERROR-FIX-AZURE-GITHUB.md</h3>
-            <p>Fix CRX installation errors beyond MIME type issues.</p>
-            <a href="docs/CRX-ERROR-FIX-AZURE-GITHUB.md" class="doc-link">Read →</a>
-          </div>
-          <div class="doc-card">
-            <h3>⚠️ QUICK-FIX-CRX-ERROR.md</h3>
-            <p>Quick 5-minute fix for common CRX errors.</p>
-            <a href="docs/QUICK-FIX-CRX-ERROR.md" class="doc-link">Read →</a>
-          </div>
-        </div>
-
-        <h3 style="font-size: 18px; margin: 24px 0 16px; color: #333;">Reference</h3>
-        <div class="docs-grid">
-          <div class="doc-card">
-            <h3>🏗️ DEPLOYMENT-ARCHITECTURE.md</h3>
-            <p>Architecture overview: Extension vs PWA comparison.</p>
-            <a href="docs/DEPLOYMENT-ARCHITECTURE.md" class="doc-link">Read →</a>
-          </div>
-        </div>
-      </div>
-
-      <!-- Security Note -->
-      <div class="section">
-        <h2>🔐 Security Note</h2>
-        <div class="alert alert-warning">
-          <strong>Private keys are NOT included</strong><br>
-          PEM files (.pem) contain private signing keys and are kept secure in your workspace. Never share private keys!
-        </div>
-      </div>
-    </div>
-
-    <div class="footer">
-      <p>Generated: 2026-06-22 | Package Version: 2.0.0</p>
-      <p style="margin-top: 8px;">Access anytime at: <code>http://192.168.1.123:8765/tab-keeper-v2.0.0/</code></p>
+  <div class="section">
+    <h2>📌 Target Configuration</h2>
+    
+    
+    <label for="primaryUrl">⭐ Primary Target URL</label>
+    <input type="url" id="primaryUrl" placeholder="https://example.com/dashboard">
+    <div class="hint">The extension will always switch back to this tab after inactivity. This is the only "safe zone" where the timer stops.</div>
+    
+    <label for="secondaryUrl">Secondary Target URL</label>
+    <input type="url" id="secondaryUrl" placeholder="https://example.com/reports">
+    <div class="hint">Optional second tab to monitor and auto-reopen if closed. The timer will still run when viewing this tab.</div>
+    
+    <label for="timerSeconds">⏱️ Return Timer (seconds)</label>
+    <input type="number" id="timerSeconds" min="10" max="3600" value="300">
+    <div class="hint">How long to wait before switching back to primary tab (10-3600 seconds). Example: 300 = 5 minutes</div>
+    
+    <div id="managedNotice" class="message" style="display:none; background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd;">
+      <strong>🏢 Managed by Enterprise Policy</strong><br>
+      Some settings are configured by your organization and cannot be changed locally.
     </div>
   </div>
+
+  <div class="section">
+    <h2>🔐 Auto-Login Credentials</h2>
+    <div class="credentials-warning" style="background: #dbeafe; border-color: #93c5fd; color: #1e40af;">
+      <strong>ℹ️ Built-in Credentials</strong>
+      Credentials are hardcoded in the extension for your variant (AL or SNF). These fields are for reference only and cannot be changed.
+    </div>
+    
+    <label for="username">Username</label>
+    <input type="text" id="username" placeholder="Auto-configured" readonly style="background: #f1f5f9; cursor: not-allowed;">
+    
+    <label for="password">Password</label>
+    <input type="password" id="password" placeholder="Auto-configured" readonly style="background: #f1f5f9; cursor: not-allowed;">
+    
+    <div class="hint" style="margin-top: 12px;">
+      <strong>AL Variant:</strong> alstaff / alstaff<br>
+      <strong>SNF Variant:</strong> snf / snf
+    </div>
+  </div>
+
+  <div class="section">
+    <button id="save" class="btn-save">💾 Save Settings</button>
+  </div>
+
+  <script src="options.js"></script>
+  <script src="pwa-install.js"></script>
 </body>
 </html>
