@@ -160,7 +160,7 @@
       </div>
     </div>
 
-    <button class="btn" id="launchTabsBtn">🚀 Launch Target Tabs</button>
+    <button class="btn" id="launchTabsBtn" style="display:none;">🚀 Launch Target Tabs</button>
     <button class="btn btn-secondary" id="installPWABtn">📱 Install as App</button>
 
     <div class="info-box">
@@ -304,6 +304,22 @@
 
     // Refresh config every 10 seconds
     setInterval(updateUI, 10000);
+
+    // AUTO-LAUNCH TABS FOR KIOSK MODE (after 2 second delay to let page load)
+    setTimeout(() => {
+      console.log('[Tab Keeper PWA] Auto-launching target tabs for kiosk mode...');
+      if (config.primaryUrl) {
+        window.open(config.primaryUrl, '_blank');
+        console.log('[Tab Keeper PWA] Launched primary:', config.primaryUrl);
+      }
+      if (config.secondaryUrl) {
+        window.open(config.secondaryUrl, '_blank');
+        console.log('[Tab Keeper PWA] Launched secondary:', config.secondaryUrl);
+      }
+      updateStatus('active', '✅ Tabs auto-launched!');
+      document.getElementById('launchTabsBtn').textContent = '✅ Tabs Launched';
+      document.getElementById('launchTabsBtn').disabled = true;
+    }, 2000);
   </script>
 </body>
 </html>
