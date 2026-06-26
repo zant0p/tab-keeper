@@ -108,36 +108,51 @@ function checkLoginStatus() {
 function closeBreachPopup() {
   console.log('Tab Keeper Content: Attempting to close breach popup');
   
-  // Method 1: Look for dialog elements
-  const dialogs = document.querySelectorAll('div[role="dialog"], .mdc-dialog, [aria-label*="password"], [aria-label*="breach"], [aria-label*="compromised"]');
-  dialogs.forEach(dialog => {
-    const closeBtn = dialog.querySelector('button') || dialog.querySelector('[role="button"]');
-    if (closeBtn) {
-      console.log('Tab Keeper Content: Found dialog, clicking close button');
-      closeBtn.click();
-    }
-  });
-  
-  // Method 2: Look for buttons with specific text
+  // Method 1: Click buttons with specific text (case-insensitive)
   const allButtons = document.querySelectorAll('button');
   allButtons.forEach(btn => {
-    const text = btn.textContent.toLowerCase();
-    if (text.includes('dismiss') || text.includes('close') || text.includes('cancel') || text.includes('ignore')) {
-      console.log('Tab Keeper Content: Clicking dismiss button');
+    const text = btn.textContent.toLowerCase().trim();
+    if (text === 'ok' || text.includes('dismiss') || text.includes('ignore') || text.includes('close') || text.includes('cancel')) {
+      console.log('Tab Keeper Content: Clicking button:', text);
       btn.click();
     }
   });
   
-  // Method 3: Look for overlay/backdrop clicks
+  // Method 2: Press Escape key (works on some dialogs)
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  
+  // Method 3: Look for dialog elements and click their buttons
+  const dialogs = document.querySelectorAll('div[role="dialog"], .mdc-dialog, [aria-label*="password"], [aria-label*="breach"]');
+  dialogs.forEach(dialog => {
+    // Try to find any button in the dialog
+    const buttons = dialog.querySelectorAll('button, [role="button"]');
+    buttons.forEach(btn => {
+      console.log('Tab Keeper Content: Clicking dialog button');
+      btn.click();
+    });
+    
+    // If no buttons found, try clicking the dialog backdrop
+    if (buttons.length === 0 && dialog.parentElement) {
+      console.log('Tab Keeper Content: Clicking dialog backdrop');
+      dialog.parentElement.click();
+    }
+  });
+  
+  // Method 4: Click on any overlay/backdrop
   const overlays = document.querySelectorAll('.backdrop, .overlay, [class*="backdrop"], [class*="overlay"]');
   overlays.forEach(overlay => {
     if (overlay.offsetHeight > window.innerHeight * 0.8) {
-      console.log('Tab Keeper Content: Clicking overlay to dismiss');
+      console.log('Tab Keeper Content: Clicking overlay');
       overlay.click();
     }
   });
   
-  chrome.runtime.sendMessage({ action: 'closeBreachPopup' });
+  // Notify background that we tried to close it
+  try {
+    chrome.runtime.sendMessage({ action: 'closeBreachPopup' });
+  } catch (e) {
+    // Background might not be available, that's ok
+  }
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
