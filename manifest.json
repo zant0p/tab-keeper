@@ -3,8 +3,6 @@
   "name": "Tab Keeper",
   "version": "2.0.2",
   "description": "Keeps PointClickCare tabs alive with auto-login. AL and SNF variants with built-in credentials.",
-  "kiosk_enabled": true,
-  "kiosk_needed": true,
   "permissions": [
     "tabs",
     "storage",
