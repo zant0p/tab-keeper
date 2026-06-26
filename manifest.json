@@ -47,6 +47,7 @@
     }
   ],
   "update_url": "https://github.com/zant0p/tab-keeper/releases/download/v2.0.2/updates.xml",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAujbLw9L6K9qhjgDmmuSjWKt1el7eonzilGVIVth+MorljGiS5JAMsFmkX2UQ2VCxQh1rGB4tMHZX7hmBLTJLQ9mwXpG6zwq5xhQT17yq5WwGaNql0h0BVBw8Tn5H6ASyhU3f2OM/K3E7yyCBl/OdavifYrSxBmN349hqmd3Zu6onXNTsDB1Fv4SS6v8IUmhp/3De2vFx/otbEqO7f6G2OArs2RjFQ+Z8zZoB2obqw9gLbTVKWLOT6o0/fIZtO1YU",
   "web_accessible_resources": [
     {
       "resources": ["icons/*.png"],
