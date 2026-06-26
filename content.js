@@ -108,21 +108,25 @@ function checkLoginStatus() {
 function closeBreachPopup() {
   console.log('Tab Keeper Content: Attempting to close breach popup');
   
-  // Method 1: Click buttons with specific text (case-insensitive)
+  // Method 1: Click buttons with specific text (case-insensitive, exact match)
   const allButtons = document.querySelectorAll('button');
   allButtons.forEach(btn => {
     const text = btn.textContent.toLowerCase().trim();
-    if (text === 'ok' || text.includes('dismiss') || text.includes('ignore') || text.includes('close') || text.includes('cancel')) {
+    if (text === 'ok' || text === 'dismiss' || text === 'ignore' || text === 'cancel' || 
+        text.includes('not now') || text.includes('change password')) {
       console.log('Tab Keeper Content: Clicking button:', text);
       btn.click();
     }
   });
   
-  // Method 2: Press Escape key (works on some dialogs)
-  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  // Method 2: Press Escape key multiple times
+  for (let i = 0; i < 3; i++) {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape', bubbles: true }));
+  }
   
   // Method 3: Look for dialog elements and click their buttons
-  const dialogs = document.querySelectorAll('div[role="dialog"], .mdc-dialog, [aria-label*="password"], [aria-label*="breach"]');
+  const dialogs = document.querySelectorAll('div[role="dialog"], .mdc-dialog, [aria-label*="password"], [aria-label*="breach"], [aria-label*="compromised"]');
   dialogs.forEach(dialog => {
     // Try to find any button in the dialog
     const buttons = dialog.querySelectorAll('button, [role="button"]');
@@ -144,6 +148,15 @@ function closeBreachPopup() {
     if (overlay.offsetHeight > window.innerHeight * 0.8) {
       console.log('Tab Keeper Content: Clicking overlay');
       overlay.click();
+    }
+  });
+  
+  // Method 5: Try to find and click any visible modal close button
+  const closeIcons = document.querySelectorAll('[aria-label="Close"], .close-icon, [class*="close"]');
+  closeIcons.forEach(icon => {
+    if (icon.offsetWidth > 0 && icon.offsetHeight > 0) {
+      console.log('Tab Keeper Content: Clicking close icon');
+      icon.click();
     }
   });
   
