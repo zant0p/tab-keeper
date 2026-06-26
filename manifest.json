@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Tab Keeper",
-  "version": "2.0.2",
-  "description": "Keeps PointClickCare tabs alive with auto-login. AL and SNF variants with built-in credentials.",
+  "version": "2.0.3",
+  "description": "Keeps important tabs alive and logged in with configurable auto-login. Enterprise-managed credentials supported.",
   "permissions": [
     "tabs",
     "storage",
@@ -44,12 +44,17 @@
       "run_at": "document_idle"
     }
   ],
-  "update_url": "https://github.com/zant0p/tab-keeper/releases/download/v2.0.2/updates.xml",
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAujbLw9L6K9qhjgDmmuSjWKt1el7eonzilGVIVth+MorljGiS5JAMsFmkX2UQ2VCxQh1rGB4tMHZX7hmBLTJLQ9mwXpG6zwq5xhQT17yq5WwGaNql0h0BVBw8Tn5H6ASyhU3f2OM/K3E7yyCBl/OdavifYrSxBmN349hqmd3Zu6onXNTsDB1Fv4SS6v8IUmhp/3De2vFx/otbEqO7f6G2OArs2RjFQ+Z8zZoB2obqw9gLbTVKWLOT6o0/fIZtO1YU",
   "web_accessible_resources": [
     {
-      "resources": ["icons/*.png"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "icons/*.png"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
-  ]
+  ],
+  "storage": {
+    "managed_schema": "managed_storage_schema.json"
+  }
 }

@@ -1,20 +1,44 @@
 // Tab Keeper - Content Script (v2.0.0)
-// Detects login page, auto-fills credentials, handles Chrome breach popup (AL variant)
+// Detects login page, auto-fills credentials, handles Chrome breach popup
+// No hardcoded URLs - receives config from background script
 
 let loginCheckTimeout = null;
 let loginAttempted = false;
 let checkAttempts = 0;
 const MAX_CHECK_ATTEMPTS = 5;
+let currentPrimaryUrl = '';
+
+// Get primary URL from background script
+async function getPrimaryUrl() {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ action: 'getStatus' }, (response) => {
+      if (response && response.primaryUrl) {
+        currentPrimaryUrl = response.primaryUrl;
+        resolve(response.primaryUrl);
+      } else {
+        // Fallback default
+        resolve('https://10.1.129.207/Arial/#/login');
+      }
+    });
+  });
+}
 
 // Check for login status
-function startLoginMonitoring() {
+async function startLoginMonitoring() {
   console.log('Tab Keeper Content: Starting login monitoring');
   
-  // Only run on primary URL (PointClickCare internal)
+  const primaryUrl = await getPrimaryUrl();
   const currentUrl = window.location.href;
-  const primaryUrl = 'https://10.1.129.207/Arial/#/login';
   
-  if (!currentUrl.startsWith('https://10.1.129.207/Arial')) {
+  // Extract origin from primary URL for matching
+  let primaryOrigin = '';
+  try {
+    primaryOrigin = new URL(primaryUrl).origin;
+  } catch (e) {
+    primaryOrigin = 'https://10.1.129.207';
+  }
+  
+  if (!currentUrl.startsWith(primaryOrigin)) {
     console.log('Tab Keeper Content: Not on primary URL, skipping auto-login');
     return;
   }
@@ -57,12 +81,10 @@ function checkLoginStatus() {
       if (response && response.success) {
         console.log('Tab Keeper Content: Auto-login initiated');
         
-        // For AL variant: wait for breach popup and close it after login attempt
-        if (response.variant === 'AL') {
-          setTimeout(() => {
-            closeBreachPopup();
-          }, 3000); // Wait 3 seconds after login attempt
-        }
+        // Wait for breach popup and close it after login attempt
+        setTimeout(() => {
+          closeBreachPopup();
+        }, 3000); // Wait 3 seconds after login attempt
       } else {
         console.log('Tab Keeper Content: No response from background, will retry');
         loginAttempted = false;
@@ -82,7 +104,7 @@ function checkLoginStatus() {
   }
 }
 
-// Close Chrome's password breach notification popup (AL variant)
+// Close Chrome's password breach notification popup
 function closeBreachPopup() {
   console.log('Tab Keeper Content: Attempting to close breach popup');
   

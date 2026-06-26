@@ -1,7 +1,7 @@
 # Tab Keeper - Privacy Policy
 
-**Last Updated:** June 2, 2026  
-**Extension Version:** 1.0.15  
+**Last Updated:** June 26, 2026  
+**Extension Version:** 2.0.3  
 **Contact:** zantop@protonmail.com
 
 ---
@@ -22,9 +22,9 @@ Tab Keeper requires access to the following data to function:
 
 | Data Type | Purpose | Storage Location |
 |-----------|---------|------------------|
-| **Target URL** | The URL to keep active | Chrome local storage |
-| **Return Timer** | Inactivity timeout (1-60 min) | Chrome local storage |
-| **Username/Password** | Auto-login credentials (optional) | Chrome local storage |
+| **Target URLs** | The URLs to keep active | Chrome local/managed storage |
+| **Return Timer** | Inactivity timeout (1-60 min) | Chrome local/managed storage |
+| **Username/Password** | Auto-login credentials (optional, enterprise-managed) | Chrome encrypted storage |
 | **Active Tab Status** | Detect when user switches tabs | In-memory only (not stored) |
 | **Current URL** | Detect login pages for auto-fill | In-memory only (not stored) |
 
@@ -66,11 +66,11 @@ Specifically:
 
 ### How We Protect Your Data
 
-- **Local Storage Only:** All data is stored in Chrome's `chrome.storage.local` API
+- **Local Storage Only:** All data is stored in Chrome's `chrome.storage.local` or `chrome.storage.managed` API (for enterprise deployments)
 - **Extension Isolation:** Data is accessible only by the Tab Keeper extension
 - **Profile-Bound:** Data is tied to your Chrome browser profile
 - **No Transmission:** Data never leaves your device
-- **No Encryption:** Chrome local storage is not encrypted (plain text)
+- **Enterprise Encryption:** When managed via chrome.storage.managed, credentials are encrypted by Chrome/OS policy management
 
 ### Security Recommendations
 

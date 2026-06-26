@@ -1,29 +1,27 @@
 // Tab Keeper - Background Service Worker (v2.0.0)
-// AL and SNF variants with built-in credentials
+// Refactored for Chrome Web Store - no hardcoded credentials
+// Uses chrome.storage.managed for enterprise policy injection
 // Timer in seconds, keeps both tabs alive, handles Chrome breach popup
 
-// Configuration - choose variant before building
-// Set to 'AL' for Assisted Living or 'SNF' for Skilled Nursing Facility
-const VARIANT = 'AL'
-
-// Credentials per variant
-const CREDENTIALS = {
-  AL: {
-    username: 'alstaff',
-    password: 'alstaff'
-  },
-  SNF: {
-    username: 'snf',
-    password: 'snf'
-  }
-};
-
-// URLs
-const PRIMARY_URL = 'https://10.1.129.207/Arial/#/login';
-const SECONDARY_URL = 'https://login.pointclickcare.com/poc/userLogin.xhtml';
+// URLs - defaults can be overridden via chrome.storage.managed (enterprise policies)
+const DEFAULT_PRIMARY_URL = 'https://10.1.129.207/Arial/#/login';
+const DEFAULT_SECONDARY_URL = 'https://login.pointclickcare.com/poc/userLogin.xhtml';
 
 // Timer in seconds (default 300 seconds = 5 minutes)
 const DEFAULT_TIMER_SECONDS = 300;
+
+// Default credentials (should be overridden by managed storage for security)
+const DEFAULT_USERNAME = '';
+const DEFAULT_PASSWORD = '';
+
+// Runtime state (no hardcoded variant - loaded from managed storage)
+let runtimeConfig = {
+  primaryUrl: DEFAULT_PRIMARY_URL,
+  secondaryUrl: DEFAULT_SECONDARY_URL,
+  timerSeconds: DEFAULT_TIMER_SECONDS,
+  username: DEFAULT_USERNAME,
+  password: DEFAULT_PASSWORD
+};
 
 // State
 let isSwitchingBack = false;
@@ -31,9 +29,33 @@ let activityListenerInstalled = false;
 let primaryTabId = null;
 let secondaryTabId = null;
 
-// Get credentials for current variant
-function getCredentials() {
-  return CREDENTIALS[VARIANT] || CREDENTIALS.AL;
+// Load configuration from managed storage (enterprise policies) or use defaults
+async function loadConfig() {
+  return new Promise((resolve) => {
+    chrome.storage.managed.get(null, (managedResult) => {
+      if (chrome.runtime.lastError) {
+        console.log('[Tab Keeper] Managed storage not available, using defaults');
+      }
+      
+      // Merge managed config with defaults
+      runtimeConfig = {
+        primaryUrl: (managedResult && managedResult.primaryUrl) || DEFAULT_PRIMARY_URL,
+        secondaryUrl: (managedResult && managedResult.secondaryUrl) || DEFAULT_SECONDARY_URL,
+        timerSeconds: (managedResult && managedResult.timerMinutes) ? managedResult.timerMinutes * 60 : DEFAULT_TIMER_SECONDS,
+        username: (managedResult && managedResult.username) || DEFAULT_USERNAME,
+        password: (managedResult && managedResult.password) || DEFAULT_PASSWORD
+      };
+      
+      console.log('[Tab Keeper] Config loaded:', {
+        primaryUrl: runtimeConfig.primaryUrl,
+        secondaryUrl: runtimeConfig.secondaryUrl,
+        timerSeconds: runtimeConfig.timerSeconds,
+        hasCredentials: !!(runtimeConfig.username && runtimeConfig.password)
+      });
+      
+      resolve(runtimeConfig);
+    });
+  });
 }
 
 // Storage helper: reads config from local storage
@@ -54,27 +76,29 @@ async function setConfig(data) {
   });
 }
 
-// Initialize on install
-chrome.runtime.onInstalled.addListener(() => {
-  console.log(`[Tab Keeper] Installed v2.0.0 (${VARIANT} variant)`);
+// Initialize on install - load config from managed storage
+chrome.runtime.onInstalled.addListener(async () => {
+  console.log('[Tab Keeper] Installed v2.0.0 (Web Store compliant)');
+  await loadConfig();
   // Set defaults
   setConfig({
-    timerSeconds: DEFAULT_TIMER_SECONDS,
-    variant: VARIANT,
-    primaryUrl: PRIMARY_URL,
-    secondaryUrl: SECONDARY_URL
+    timerSeconds: runtimeConfig.timerSeconds,
+    primaryUrl: runtimeConfig.primaryUrl,
+    secondaryUrl: runtimeConfig.secondaryUrl
   });
 });
 
 // On startup - open target tabs
 chrome.runtime.onStartup.addListener(async () => {
   console.log('[Tab Keeper] Extension started');
+  await loadConfig();
   await ensureTabsExist();
 });
 
 // Also open tabs when extension is first loaded/refreshed
 (async () => {
   console.log('[Tab Keeper] Background script loaded');
+  await loadConfig();
   await ensureTabsExist();
 })();
 
@@ -83,7 +107,7 @@ async function ensureTabsExist() {
   const allTabs = await chrome.tabs.query({});
   
   // Match by domain/origin for primary (handles URL changes after login)
-  const primaryOrigin = 'https://10.1.129.207';
+  const primaryOrigin = new URL(runtimeConfig.primaryUrl).origin;
   const allPrimaryTabs = allTabs.filter(tab => {
     if (!tab.url) return false;
     try {
@@ -106,12 +130,12 @@ async function ensureTabsExist() {
     }
   } else {
     console.log('[Tab Keeper] Primary tab not found - creating it');
-    const newTab = await chrome.tabs.create({ url: PRIMARY_URL, active: false });
+    const newTab = await chrome.tabs.create({ url: runtimeConfig.primaryUrl, active: false });
     primaryTabId = newTab.id;
   }
   
   // Match by domain for secondary
-  const secondaryOrigin = 'https://login.pointclickcare.com';
+  const secondaryOrigin = new URL(runtimeConfig.secondaryUrl).origin;
   const allSecondaryTabs = allTabs.filter(tab => {
     if (!tab.url) return false;
     try {
@@ -134,7 +158,7 @@ async function ensureTabsExist() {
     }
   } else {
     console.log('[Tab Keeper] Secondary tab not found - creating it');
-    const newTab = await chrome.tabs.create({ url: SECONDARY_URL, active: false });
+    const newTab = await chrome.tabs.create({ url: runtimeConfig.secondaryUrl, active: false });
     secondaryTabId = newTab.id;
   }
   
@@ -211,7 +235,7 @@ async function recordActivity(tabId) {
   if (tabId) {
     try {
       const tab = await chrome.tabs.get(tabId);
-      const isOnPrimary = tab.url === PRIMARY_URL || tab.url?.startsWith(PRIMARY_URL);
+      const isOnPrimary = tab.url === runtimeConfig.primaryUrl || tab.url?.startsWith(runtimeConfig.primaryUrl);
       
       if (isOnPrimary) {
         console.log('[Tab Keeper] Activity on PRIMARY tab - ignoring (safe zone)');
@@ -265,22 +289,22 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
       if (tabId === primaryTabId) {
         // Double-check: make sure no other tab with this URL exists before reopening
         const allTabs = await chrome.tabs.query({});
-        const primaryExists = allTabs.some(tab => tab.url === PRIMARY_URL || tab.url?.startsWith(PRIMARY_URL));
+        const primaryExists = allTabs.some(tab => tab.url === runtimeConfig.primaryUrl || tab.url?.startsWith(runtimeConfig.primaryUrl));
         
         if (!primaryExists) {
           console.log('[Tab Keeper] Reopening primary tab');
-          const newTab = await chrome.tabs.create({ url: PRIMARY_URL, active: false });
+          const newTab = await chrome.tabs.create({ url: runtimeConfig.primaryUrl, active: false });
           primaryTabId = newTab.id;
         } else {
           console.log('[Tab Keeper] Primary tab already exists - skipping reopen');
         }
       } else if (tabId === secondaryTabId) {
         const allTabs = await chrome.tabs.query({});
-        const secondaryExists = allTabs.some(tab => tab.url === SECONDARY_URL || tab.url?.startsWith(SECONDARY_URL));
+        const secondaryExists = allTabs.some(tab => tab.url === runtimeConfig.secondaryUrl || tab.url?.startsWith(runtimeConfig.secondaryUrl));
         
         if (!secondaryExists) {
           console.log('[Tab Keeper] Reopening secondary tab');
-          const newTab = await chrome.tabs.create({ url: SECONDARY_URL, active: false });
+          const newTab = await chrome.tabs.create({ url: runtimeConfig.secondaryUrl, active: false });
           secondaryTabId = newTab.id;
         } else {
           console.log('[Tab Keeper] Secondary tab already exists - skipping reopen');
@@ -332,8 +356,8 @@ async function handleTabSwitch(newTabId) {
     const tabUrl = tab.url || '';
     
     // Check if this is the primary tab (the only safe zone)
-    const isPrimaryTab = tabUrl === PRIMARY_URL || tabUrl?.startsWith(PRIMARY_URL);
-    const isSecondaryTab = tabUrl === SECONDARY_URL || tabUrl?.startsWith(SECONDARY_URL);
+    const isPrimaryTab = tabUrl === runtimeConfig.primaryUrl || tabUrl?.startsWith(runtimeConfig.primaryUrl);
+    const isSecondaryTab = tabUrl === runtimeConfig.secondaryUrl || tabUrl?.startsWith(runtimeConfig.secondaryUrl);
     
     console.log('[Tab Keeper] Current tab URL:', tabUrl.substring(0, 80));
     console.log('[Tab Keeper] Is primary tab:', isPrimaryTab);
@@ -365,7 +389,7 @@ async function switchBackToPrimary() {
     const allTabs = await chrome.tabs.query({});
     
     // Match by origin (handles URL changes after login/navigation)
-    const primaryOrigin = 'https://10.1.129.207';
+    const primaryOrigin = new URL(runtimeConfig.primaryUrl).origin;
     let existingTab = allTabs.find(tab => {
       if (!tab.url) return false;
       try {
@@ -391,7 +415,7 @@ async function switchBackToPrimary() {
       }, 500);
     } else {
       console.log('[Tab Keeper] No existing primary tab found - creating new one');
-      const newTab = await chrome.tabs.create({ url: PRIMARY_URL });
+      const newTab = await chrome.tabs.create({ url: runtimeConfig.primaryUrl });
       primaryTabId = newTab.id;
       console.log('[Tab Keeper] ✓ Created new primary tab:', newTab.id);
     }
@@ -403,7 +427,7 @@ async function switchBackToPrimary() {
 // Monitor tab updates - trigger auto-login check when page loads
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tabId === primaryTabId) {
-    const isPrimaryUrl = tab.url === PRIMARY_URL || tab.url?.startsWith(PRIMARY_URL);
+    const isPrimaryUrl = tab.url === runtimeConfig.primaryUrl || tab.url?.startsWith(runtimeConfig.primaryUrl);
     
     if (isPrimaryUrl) {
       console.log('[Tab Keeper] Primary tab loaded - triggering login check');
@@ -431,9 +455,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'getStatus') {
     getConfig(['timerActive', 'lastActivity', 'timerDuration', 'timerStartTime', 'timerSeconds']).then((state) => {
       sendResponse({
-        variant: VARIANT,
-        primaryUrl: PRIMARY_URL,
-        secondaryUrl: SECONDARY_URL,
+        primaryUrl: runtimeConfig.primaryUrl,
+        secondaryUrl: runtimeConfig.secondaryUrl,
+        timerSeconds: runtimeConfig.timerSeconds,
+        hasCredentials: !!(runtimeConfig.username && runtimeConfig.password),
         ...state
       });
     });
@@ -460,30 +485,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   // Get credentials for auto-login
   if (message.action === 'getCredentials') {
-    const creds = getCredentials();
+    // Credentials must come from managed storage or local storage (user-configured)
+    const creds = {
+      username: runtimeConfig.username,
+      password: runtimeConfig.password
+    };
+    
+    if (!creds.username || !creds.password) {
+      console.log('[Tab Keeper] No credentials configured for auto-login');
+      sendResponse({ 
+        success: false,
+        reason: 'no credentials configured'
+      });
+      return true;
+    }
+    
     sendResponse({ 
       success: true,
       username: creds.username,
-      password: creds.password,
-      variant: VARIANT
+      password: creds.password
     });
     return true;
   }
   
   // Handle auto-login request - ONLY for primary URL
   if (message.action === 'loginRequired') {
-    const creds = getCredentials();
+    const creds = { username: runtimeConfig.username, password: runtimeConfig.password };
     
     // Verify sender is on primary URL (not secondary)
     const senderUrl = sender.tab?.url;
-    const isPrimaryTab = senderUrl && (
-      senderUrl === PRIMARY_URL ||
-      senderUrl.startsWith(PRIMARY_URL)
-    );
+    const isPrimaryTab = senderUrl && (senderUrl === runtimeConfig.primaryUrl || senderUrl.startsWith(runtimeConfig.primaryUrl));
     
     if (!isPrimaryTab) {
       console.log('[Tab Keeper] Auto-login REJECTED - not on primary URL:', senderUrl);
       sendResponse({ success: false, reason: 'not primary url' });
+      return true;
+    }
+    
+    if (!creds.username || !creds.password) {
+      console.log('[Tab Keeper] Auto-login REJECTED - no credentials configured');
+      sendResponse({ success: false, reason: 'no credentials' });
       return true;
     }
     
@@ -620,32 +661,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   // Handle Chrome breach popup dismissal (AL variant only)
   if (message.action === 'closeBreachPopup') {
-    if (VARIANT === 'AL') {
-      console.log('[Tab Keeper] Closing breach popup for AL variant');
-      chrome.scripting.executeScript({
-        target: { tabId: sender.tab.id },
-        func: () => {
-          // Look for Chrome's password breach notification dialog
-          const dialogs = document.querySelectorAll('div[role="dialog"], .mdc-dialog, [aria-label*="password"], [aria-label*="breach"]');
-          dialogs.forEach(dialog => {
-            const closeBtn = dialog.querySelector('button') || dialog.querySelector('[role="button"]');
-            if (closeBtn) {
-              console.log('[Breach Popup] Closing dialog');
-              closeBtn.click();
-            }
-          });
-          
-          // Also try to find by text content
-          const allButtons = document.querySelectorAll('button');
-          allButtons.forEach(btn => {
-            const text = btn.textContent.toLowerCase();
-            if (text.includes('dismiss') || text.includes('close') || text.includes('cancel')) {
-              btn.click();
-            }
-          });
-        }
-      });
-    }
+    console.log('[Tab Keeper] Closing breach popup');
+    chrome.scripting.executeScript({
+      target: { tabId: sender.tab.id },
+      func: () => {
+        // Look for Chrome's password breach notification dialog
+        const dialogs = document.querySelectorAll('div[role="dialog"], .mdc-dialog, [aria-label*="password"], [aria-label*="breach"]');
+        dialogs.forEach(dialog => {
+          const closeBtn = dialog.querySelector('button') || dialog.querySelector('[role="button"]');
+          if (closeBtn) {
+            console.log('[Breach Popup] Closing dialog');
+            closeBtn.click();
+          }
+        });
+        
+        // Also try to find by text content
+        const allButtons = document.querySelectorAll('button');
+        allButtons.forEach(btn => {
+          const text = btn.textContent.toLowerCase();
+          if (text.includes('dismiss') || text.includes('close') || text.includes('cancel')) {
+            btn.click();
+          }
+        });
+      }
+    });
     sendResponse({ status: 'ok' });
     return true;
   }
