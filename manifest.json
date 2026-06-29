@@ -56,6 +56,5 @@
   ],
   "storage": {
     "managed_schema": "managed_storage_schema.json"
-  },
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtZ/1DEo2pLAnEGr2E72xUSyouyc883blLkvF9BwCbwVEwWXGJ3hpGo0IiPuRyT3Zxg5Ghya/vSxNq8RPTSDVG/xADgYIvxY2jGGYrCcGMpDc4IMkkcRg4yxEYUH+prPmLTz3W11CFhfDw7Aw7tVzI52cLASYoGkggnkUW+V2+1foaqRif2JrchNQ++QNfVsOZ95XjGjSMDvOy7zmBctqOXs22kOudiOGYc1ECv/DgZaEZDC5aOaNOeMp2aoCqcJFgUp06icaad40moJRxukOuvdqeqeRy+uxdGq+FtbGFwKxKWMtDHBo735Edb0BJdrTIiCyMqc4mBZaI/DZlHhugQIDAQAB"
+  }
 }
