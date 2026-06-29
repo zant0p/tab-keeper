@@ -10,17 +10,24 @@ const DEFAULT_SECONDARY_URL = 'https://login.pointclickcare.com/poc/userLogin.xh
 // Timer in seconds (default 300 seconds = 5 minutes)
 const DEFAULT_TIMER_SECONDS = 300;
 
-// Default credentials (should be overridden by managed storage for security)
+// Default credentials for variants (fallback when managed storage not configured)
+// AL Variant: alstaff / alstaff
+// SNF Variant: snf / snf
 const DEFAULT_USERNAME = '';
 const DEFAULT_PASSWORD = '';
+const AL_USERNAME = 'alstaff';
+const AL_PASSWORD = 'alstaff';
+const SNF_USERNAME = 'snf';
+const SNF_PASSWORD = 'snf';
 
-// Runtime state (no hardcoded variant - loaded from managed storage)
+// Runtime state (no hardcoded variant - loaded from managed storage or URL detection)
 let runtimeConfig = {
   primaryUrl: DEFAULT_PRIMARY_URL,
   secondaryUrl: DEFAULT_SECONDARY_URL,
   timerSeconds: DEFAULT_TIMER_SECONDS,
   username: DEFAULT_USERNAME,
-  password: DEFAULT_PASSWORD
+  password: DEFAULT_PASSWORD,
+  variant: null
 };
 
 // State
@@ -37,19 +44,50 @@ async function loadConfig() {
         console.log('[Tab Keeper] Managed storage not available, using defaults');
       }
       
+      // Detect variant from URL if not specified in managed storage
+      let detectedVariant = null;
+      if (managedResult && managedResult.primaryUrl) {
+        if (managedResult.primaryUrl.includes('/AL/')) {
+          detectedVariant = 'AL';
+        } else if (managedResult.primaryUrl.includes('/SNF/')) {
+          detectedVariant = 'SNF';
+        }
+      } else if (DEFAULT_PRIMARY_URL.includes('/AL/')) {
+        detectedVariant = 'AL';
+      }
+      
+      // Auto-set credentials based on variant if not provided in managed storage
+      let username = (managedResult && managedResult.username) || DEFAULT_USERNAME;
+      let password = (managedResult && managedResult.password) || DEFAULT_PASSWORD;
+      
+      // If no credentials in managed storage, use variant defaults
+      if (!username || !password) {
+        if (detectedVariant === 'AL') {
+          username = AL_USERNAME;
+          password = AL_PASSWORD;
+          console.log('[Tab Keeper] Using AL variant default credentials');
+        } else if (detectedVariant === 'SNF') {
+          username = SNF_USERNAME;
+          password = SNF_PASSWORD;
+          console.log('[Tab Keeper] Using SNF variant default credentials');
+        }
+      }
+      
       // Merge managed config with defaults
       runtimeConfig = {
         primaryUrl: (managedResult && managedResult.primaryUrl) || DEFAULT_PRIMARY_URL,
         secondaryUrl: (managedResult && managedResult.secondaryUrl) || DEFAULT_SECONDARY_URL,
         timerSeconds: (managedResult && managedResult.timerMinutes) ? managedResult.timerMinutes * 60 : DEFAULT_TIMER_SECONDS,
-        username: (managedResult && managedResult.username) || DEFAULT_USERNAME,
-        password: (managedResult && managedResult.password) || DEFAULT_PASSWORD
+        username: username,
+        password: password,
+        variant: detectedVariant
       };
       
       console.log('[Tab Keeper] Config loaded:', {
         primaryUrl: runtimeConfig.primaryUrl,
         secondaryUrl: runtimeConfig.secondaryUrl,
         timerSeconds: runtimeConfig.timerSeconds,
+        variant: runtimeConfig.variant,
         hasCredentials: !!(runtimeConfig.username && runtimeConfig.password)
       });
       
@@ -458,6 +496,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         primaryUrl: runtimeConfig.primaryUrl,
         secondaryUrl: runtimeConfig.secondaryUrl,
         timerSeconds: runtimeConfig.timerSeconds,
+        variant: runtimeConfig.variant,
         hasCredentials: !!(runtimeConfig.username && runtimeConfig.password),
         ...state
       });

@@ -22,6 +22,19 @@ async function loadSettings() {
       usernameField.value = 'Auto-configured';
       passwordField.value = 'Auto-configured';
     }
+  } else {
+    // Fallback: try to detect from URL
+    const primaryUrl = await chrome.runtime.sendMessage({ action: 'getStatus' }).then(s => s?.primaryUrl || '');
+    if (primaryUrl.includes('/AL/')) {
+      usernameField.value = 'alstaff';
+      passwordField.value = 'alstaff';
+    } else if (primaryUrl.includes('/SNF/')) {
+      usernameField.value = 'snf';
+      passwordField.value = 'snf';
+    } else {
+      usernameField.value = 'Auto-configured';
+      passwordField.value = 'Auto-configured';
+    }
   }
   
   // Load timer setting from local storage
