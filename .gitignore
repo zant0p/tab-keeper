@@ -1,6 +1,7 @@
 # Private keys - NEVER COMMIT
 *.private.pem
 *.pem
+!public_key.pem
 !README.md
 
 # Sensitive docs - Upload to FTP instead
