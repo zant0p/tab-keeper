@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Tab Keeper",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "Keeps important tabs alive and logged in with configurable auto-login. Enterprise-managed credentials supported.",
   "permissions": [
     "tabs",
