@@ -3,6 +3,13 @@
 *.pem
 !README.md
 
+# Sensitive docs - Upload to FTP instead
+*credentials*
+TEST-*.md
+*_SCRIPT.md
+documentation/
+ENTERPRISE_DEPLOYMENT.md
+
 # Build outputs
 dist-pwa/
 *.webbundle
