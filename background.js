@@ -576,18 +576,69 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         target: { tabId: sender.tab.id },
         func: (username, password) => {
           console.log('[Auto-Login] Starting login process...');
+          console.log('[Auto-Login] Username length:', username?.length);
+          console.log('[Auto-Login] Password length:', password?.length);
           
-          // Find and fill login form
-          const usernameField = document.querySelector('input[name*="user"], input[name*="email"], #username, #email, [name="username"], input[type="email"], ion-input[type="email"], input[id*="user"]');
-          const passwordField = document.querySelector('input[type="password"], ion-input[type="password"]');
+          // Find and fill login form - try multiple selectors
+          const usernameSelectors = [
+            'input[name*="user"]',
+            'input[name*="email"]',
+            'input[name*="username"]',
+            '#username',
+            '#email',
+            '[name="username"]',
+            'input[type="email"]',
+            'ion-input[type="email"]',
+            'input[id*="user"]',
+            'ion-input[id*="user"]'
+          ];
+          
+          const passwordSelectors = [
+            'input[type="password"]',
+            'ion-input[type="password"]',
+            'input[name*="password"]',
+            '#password',
+            '[name="password"]',
+            'input[id*="pass"]',
+            'ion-input[id*="pass"]'
+          ];
+          
+          let usernameField = null;
+          let passwordField = null;
+          
+          for (const selector of usernameSelectors) {
+            usernameField = document.querySelector(selector);
+            if (usernameField) {
+              console.log('[Auto-Login] Found username field with:', selector);
+              break;
+            }
+          }
+          
+          for (const selector of passwordSelectors) {
+            passwordField = document.querySelector(selector);
+            if (passwordField) {
+              console.log('[Auto-Login] Found password field with:', selector);
+              break;
+            }
+          }
+          
           const form = document.querySelector('form');
           
-          if (!usernameField || !passwordField) {
-            console.log('[Auto-Login] Login fields not found');
+          if (!usernameField) {
+            console.error('[Auto-Login] Username field not found. Available inputs:', 
+              Array.from(document.querySelectorAll('input')).map(i => i.type + ':' + (i.name||i.id)));
+            return;
+          }
+          
+          if (!passwordField) {
+            console.error('[Auto-Login] Password field not found. Available inputs:', 
+              Array.from(document.querySelectorAll('input')).map(i => i.type + ':' + (i.name||i.id)));
             return;
           }
           
           console.log('[Auto-Login] Found login fields, filling credentials...');
+          console.log('[Auto-Login] Username field type:', usernameField.tagName);
+          console.log('[Auto-Login] Password field type:', passwordField.tagName);
           
           // Handle both regular inputs and Ionic ion-input
           if (usernameField.tagName === 'ION-INPUT') {
