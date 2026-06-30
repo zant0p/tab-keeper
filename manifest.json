@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Tab Keeper ALF",
+  "name": "Tab Keeper ALF Call",
   "version": "2.0.5",
   "description": "Keeps important tabs alive and logged in with configurable auto-login. Enterprise-managed credentials supported.",
   "permissions": [
