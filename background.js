@@ -324,12 +324,13 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
   setTimeout(async () => {
     const allTabs = await chrome.tabs.query({});
     
-    // Check if primary tab needs reopening
-    const primaryOrigin = new URL(runtimeConfig.primaryUrl).origin;
+    // Check if primary tab needs reopening (match by origin)
+    const primaryUrl = new URL(runtimeConfig.primaryUrl);
     const primaryExists = allTabs.some(tab => {
       if (!tab.url) return false;
       try {
-        return new URL(tab.url).origin === primaryOrigin;
+        const tabUrl = new URL(tab.url);
+        return tabUrl.origin === primaryUrl.origin && tabUrl.pathname.startsWith(primaryUrl.pathname);
       } catch (e) {
         return false;
       }
@@ -343,12 +344,15 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
       console.log('[Tab Keeper] Primary tab still exists - skipping reopen');
     }
     
-    // Check if secondary tab needs reopening
-    const secondaryOrigin = new URL(runtimeConfig.secondaryUrl).origin;
+    // Check if secondary tab needs reopening (match by origin + path)
+    const secondaryUrl = new URL(runtimeConfig.secondaryUrl);
     const secondaryExists = allTabs.some(tab => {
       if (!tab.url) return false;
       try {
-        return new URL(tab.url).origin === secondaryOrigin;
+        const tabUrl = new URL(tab.url);
+        // Match origin and ensure path contains the key part
+        return tabUrl.origin === secondaryUrl.origin && 
+               (tabUrl.pathname.includes('userLogin') || tabUrl.pathname === secondaryUrl.pathname);
       } catch (e) {
         return false;
       }
@@ -356,10 +360,26 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
     
     if (!secondaryExists) {
       console.log('[Tab Keeper] Secondary tab closed - reopening');
+      console.log('[Tab Keeper] Secondary URL:', runtimeConfig.secondaryUrl);
       const newTab = await chrome.tabs.create({ url: runtimeConfig.secondaryUrl, active: false });
       secondaryTabId = newTab.id;
+      console.log('[Tab Keeper] ✓ Created secondary tab:', newTab.id);
     } else {
       console.log('[Tab Keeper] Secondary tab still exists - skipping reopen');
+      // Log which tab exists
+      const existingSecondary = allTabs.find(tab => {
+        if (!tab.url) return false;
+        try {
+          const tabUrl = new URL(tab.url);
+          return tabUrl.origin === secondaryUrl.origin && 
+                 (tabUrl.pathname.includes('userLogin') || tabUrl.pathname === secondaryUrl.pathname);
+        } catch (e) {
+          return false;
+        }
+      });
+      if (existingSecondary) {
+        console.log('[Tab Keeper] Found existing secondary tab:', existingSecondary.id, 'URL:', existingSecondary.url);
+      }
     }
   }, 1000);
 });
