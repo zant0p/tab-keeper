@@ -1,4 +1,4 @@
-// Tab Keeper - Background Service Worker (v2.0.0)
+// Tab Keeper ALF - Background Service Worker (v2.0.0)
 // Refactored for Chrome Web Store - no hardcoded credentials
 // Uses chrome.storage.managed for enterprise policy injection
 // Timer in seconds, keeps both tabs alive, handles Chrome breach popup
@@ -11,12 +11,12 @@ const DEFAULT_SECONDARY_URL = 'https://login.pointclickcare.com/poc/userLogin.xh
 const DEFAULT_TIMER_SECONDS = 300;
 
 // Default credentials for variants (fallback when managed storage not configured)
-// AL Variant: alstaff / alstaff
+// ALF Variant: alfstaff / alfstaff
 // SNF Variant: snf / snf
-const DEFAULT_USERNAME = '';
-const DEFAULT_PASSWORD = '';
-const AL_USERNAME = 'alstaff';
-const AL_PASSWORD = 'alstaff';
+const DEFAULT_USERNAME = 'alfstaff';
+const DEFAULT_PASSWORD = 'alfstaff';
+const AL_USERNAME = 'alfstaff';
+const AL_PASSWORD = 'alfstaff';
 const SNF_USERNAME = 'snf';
 const SNF_PASSWORD = 'snf';
 
