@@ -7,8 +7,8 @@
 const DEFAULT_PRIMARY_URL = 'https://10.1.129.207/Arial/#/login';
 const DEFAULT_SECONDARY_URL = 'https://login.pointclickcare.com/poc/userLogin.xhtml';
 
-// Timer in seconds (default 300 seconds = 5 minutes)
-const DEFAULT_TIMER_SECONDS = 300;
+// Timer in seconds (default 600 seconds = 10 minutes)
+const DEFAULT_TIMER_SECONDS = 600;
 
 // Default credentials for variants (fallback when managed storage not configured)
 // ALF Variant: alfstaff / alfstaff
