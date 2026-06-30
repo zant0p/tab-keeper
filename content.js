@@ -1,6 +1,12 @@
-// Tab Keeper - Content Script (v2.0.0)
+// Tab Keeper ALF - Content Script (v2.0.0)
 // Detects login page, auto-fills credentials, handles Chrome breach popup
-// No hardcoded URLs - receives config from background script
+// HARDCODED CREDENTIALS FOR ALF KIOSK
+
+const KIOSK_CONFIG = {
+  username: 'alfstaff',
+  password: 'alfstaff',
+  variant: 'ALF'
+};
 
 let loginCheckTimeout = null;
 let loginAttempted = false;
