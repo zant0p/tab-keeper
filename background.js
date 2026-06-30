@@ -167,9 +167,9 @@ async function ensureTabsExist() {
       }
     }
   } else {
-    console.log('[Tab Keeper] Primary tab not found - creating it');
-    const newTab = await chrome.tabs.create({ url: runtimeConfig.primaryUrl, active: false });
-    primaryTabId = newTab.id;
+    console.log('[Tab Keeper] Primary tab not found - PWA should open it');
+    // Don't create tab - PWA handles opening initial tabs
+    primaryTabId = null;
   }
   
   // Match by domain for secondary
@@ -195,9 +195,9 @@ async function ensureTabsExist() {
       }
     }
   } else {
-    console.log('[Tab Keeper] Secondary tab not found - creating it');
-    const newTab = await chrome.tabs.create({ url: runtimeConfig.secondaryUrl, active: false });
-    secondaryTabId = newTab.id;
+    console.log('[Tab Keeper] Secondary tab not found - PWA should open it');
+    // Don't create tab - PWA handles opening initial tabs
+    secondaryTabId = null;
   }
   
   console.log('[Tab Keeper] Tab IDs - Primary:', primaryTabId, 'Secondary:', secondaryTabId);
