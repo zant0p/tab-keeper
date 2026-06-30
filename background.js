@@ -318,38 +318,50 @@ async function installActivityListener(tabId) {
 
 // Monitor tab closure - auto-reopen target tabs
 chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
-  // Check if closed tab was a target tab
-  if (tabId === primaryTabId || tabId === secondaryTabId) {
-    console.log('[Tab Keeper] Target tab closed:', tabId);
+  console.log('[Tab Keeper] Tab closed:', tabId);
+  
+  // Reopen after a short delay
+  setTimeout(async () => {
+    const allTabs = await chrome.tabs.query({});
     
-    // Reopen after a short delay
-    setTimeout(async () => {
-      if (tabId === primaryTabId) {
-        // Double-check: make sure no other tab with this URL exists before reopening
-        const allTabs = await chrome.tabs.query({});
-        const primaryExists = allTabs.some(tab => tab.url === runtimeConfig.primaryUrl || tab.url?.startsWith(runtimeConfig.primaryUrl));
-        
-        if (!primaryExists) {
-          console.log('[Tab Keeper] Reopening primary tab');
-          const newTab = await chrome.tabs.create({ url: runtimeConfig.primaryUrl, active: false });
-          primaryTabId = newTab.id;
-        } else {
-          console.log('[Tab Keeper] Primary tab already exists - skipping reopen');
-        }
-      } else if (tabId === secondaryTabId) {
-        const allTabs = await chrome.tabs.query({});
-        const secondaryExists = allTabs.some(tab => tab.url === runtimeConfig.secondaryUrl || tab.url?.startsWith(runtimeConfig.secondaryUrl));
-        
-        if (!secondaryExists) {
-          console.log('[Tab Keeper] Reopening secondary tab');
-          const newTab = await chrome.tabs.create({ url: runtimeConfig.secondaryUrl, active: false });
-          secondaryTabId = newTab.id;
-        } else {
-          console.log('[Tab Keeper] Secondary tab already exists - skipping reopen');
-        }
+    // Check if primary tab needs reopening
+    const primaryOrigin = new URL(runtimeConfig.primaryUrl).origin;
+    const primaryExists = allTabs.some(tab => {
+      if (!tab.url) return false;
+      try {
+        return new URL(tab.url).origin === primaryOrigin;
+      } catch (e) {
+        return false;
       }
-    }, 1000);
-  }
+    });
+    
+    if (!primaryExists) {
+      console.log('[Tab Keeper] Primary tab closed - reopening');
+      const newTab = await chrome.tabs.create({ url: runtimeConfig.primaryUrl, active: false });
+      primaryTabId = newTab.id;
+    } else {
+      console.log('[Tab Keeper] Primary tab still exists - skipping reopen');
+    }
+    
+    // Check if secondary tab needs reopening
+    const secondaryOrigin = new URL(runtimeConfig.secondaryUrl).origin;
+    const secondaryExists = allTabs.some(tab => {
+      if (!tab.url) return false;
+      try {
+        return new URL(tab.url).origin === secondaryOrigin;
+      } catch (e) {
+        return false;
+      }
+    });
+    
+    if (!secondaryExists) {
+      console.log('[Tab Keeper] Secondary tab closed - reopening');
+      const newTab = await chrome.tabs.create({ url: runtimeConfig.secondaryUrl, active: false });
+      secondaryTabId = newTab.id;
+    } else {
+      console.log('[Tab Keeper] Secondary tab still exists - skipping reopen');
+    }
+  }, 1000);
 });
 
 // Monitor tab changes
