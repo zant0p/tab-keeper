@@ -203,6 +203,57 @@ async function ensureTabsExist() {
   console.log('[Tab Keeper] Tab IDs - Primary:', primaryTabId, 'Secondary:', secondaryTabId);
 }
 
+// Periodic check - ensure both target tabs exist (runs every 10 seconds)
+async function ensureTargetTabsExist() {
+  console.log('[Tab Keeper] Periodic check - verifying target tabs exist');
+  
+  const allTabs = await chrome.tabs.query({});
+  
+  // Check primary tab
+  const primaryUrl = new URL(runtimeConfig.primaryUrl);
+  const primaryExists = allTabs.some(tab => {
+    if (!tab.url) return false;
+    try {
+      const tabUrl = new URL(tab.url);
+      return tabUrl.origin === primaryUrl.origin && tabUrl.pathname.startsWith(primaryUrl.pathname);
+    } catch (e) {
+      return false;
+    }
+  });
+  
+  if (!primaryExists) {
+    console.log('[Tab Keeper] Primary tab missing - reopening');
+    const newTab = await chrome.tabs.create({ url: runtimeConfig.primaryUrl, active: false });
+    primaryTabId = newTab.id;
+  }
+  
+  // Check secondary tab
+  const secondaryUrl = new URL(runtimeConfig.secondaryUrl);
+  const secondaryExists = allTabs.some(tab => {
+    if (!tab.url) return false;
+    try {
+      const tabUrl = new URL(tab.url);
+      return tabUrl.origin === secondaryUrl.origin && 
+             (tabUrl.pathname.includes('userLogin') || tabUrl.pathname === secondaryUrl.pathname);
+    } catch (e) {
+      return false;
+    }
+  });
+  
+  if (!secondaryExists) {
+    console.log('[Tab Keeper] Secondary tab missing - reopening');
+    const newTab = await chrome.tabs.create({ url: runtimeConfig.secondaryUrl, active: false });
+    secondaryTabId = newTab.id;
+  }
+  
+  // Schedule next check
+  setTimeout(ensureTargetTabsExist, 10000);
+}
+
+// Start periodic check after a 5-second delay
+setTimeout(ensureTargetTabsExist, 5000);
+console.log('[Tab Keeper] Periodic tab check scheduled (every 10 seconds)');
+
 // Listen for alarm events
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'switchBack') {
