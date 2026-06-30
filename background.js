@@ -1,29 +1,20 @@
-// Tab Keeper SNF - Background Service Worker (v2.0.5)
-// Refactored for Chrome Web Store - no hardcoded credentials
-// Uses chrome.storage.managed for enterprise policy injection
-// Timer in seconds, keeps both tabs alive, handles Chrome breach popup
+// Tab Keeper SNF Call - Background Service Worker (v2.0.5)
+// Single tab monitoring for Aria website only
+// Timer in seconds, keeps primary tab alive, handles Chrome breach popup
 
 // URLs - defaults can be overridden via chrome.storage.managed (enterprise policies)
 const DEFAULT_PRIMARY_URL = 'https://10.1.129.207/Arial/#/login';
-const DEFAULT_SECONDARY_URL = 'https://login.pointclickcare.com/poc/userLogin.xhtml';
 
 // Timer in seconds (default 600 seconds = 10 minutes)
 const DEFAULT_TIMER_SECONDS = 600;
 
-// Default credentials for variants (fallback when managed storage not configured)
-// ALF Variant: alfstaff / alfstaff
-// SNF Variant: snf / snf
+// Default credentials for SNF Call variant
 const DEFAULT_USERNAME = 'snf';
 const DEFAULT_PASSWORD = 'snf';
-const AL_USERNAME = 'alfstaff';
-const AL_PASSWORD = '***';
-const SNF_USERNAME = 'snf';
-const SNF_PASSWORD = '***';
 
 // Runtime state (no hardcoded variant - loaded from managed storage or URL detection)
 let runtimeConfig = {
   primaryUrl: DEFAULT_PRIMARY_URL,
-  secondaryUrl: DEFAULT_SECONDARY_URL,
   timerSeconds: DEFAULT_TIMER_SECONDS,
   username: DEFAULT_USERNAME,
   password: DEFAULT_PASSWORD,
@@ -63,12 +54,8 @@ async function loadConfig() {
       // If no credentials in managed storage, use variant defaults
       if (!username || !password) {
         if (detectedVariant === 'AL') {
-          username = AL_USERNAME;
-          password = AL_PASSWORD;
           console.log('[Tab Keeper] Using AL variant default credentials');
         } else if (detectedVariant === 'SNF') {
-          username = SNF_USERNAME;
-          password = SNF_PASSWORD;
           console.log('[Tab Keeper] Using SNF variant default credentials');
         }
       }
@@ -76,7 +63,6 @@ async function loadConfig() {
       // Merge managed config with defaults
       runtimeConfig = {
         primaryUrl: (managedResult && managedResult.primaryUrl) || DEFAULT_PRIMARY_URL,
-        secondaryUrl: (managedResult && managedResult.secondaryUrl) || DEFAULT_SECONDARY_URL,
         timerSeconds: (managedResult && managedResult.timerMinutes) ? managedResult.timerMinutes * 60 : DEFAULT_TIMER_SECONDS,
         username: username,
         password: password,
@@ -85,7 +71,6 @@ async function loadConfig() {
       
       console.log('[Tab Keeper] Config loaded:', {
         primaryUrl: runtimeConfig.primaryUrl,
-        secondaryUrl: runtimeConfig.secondaryUrl,
         timerSeconds: runtimeConfig.timerSeconds,
         variant: runtimeConfig.variant,
         hasCredentials: !!(runtimeConfig.username && runtimeConfig.password)
@@ -122,7 +107,6 @@ chrome.runtime.onInstalled.addListener(async () => {
   setConfig({
     timerSeconds: runtimeConfig.timerSeconds,
     primaryUrl: runtimeConfig.primaryUrl,
-    secondaryUrl: runtimeConfig.secondaryUrl
   });
 });
 
@@ -140,7 +124,7 @@ chrome.runtime.onStartup.addListener(async () => {
   await ensureTabsExist();
 })();
 
-// Ensure target tabs exist (auto-reopen if closed)
+// Ensure target tab exists (auto-reopen if closed)
 async function ensureTabsExist() {
   const allTabs = await chrome.tabs.query({});
   
@@ -173,8 +157,6 @@ async function ensureTabsExist() {
   }
   
   // Match by domain for secondary
-  const secondaryOrigin = new URL(runtimeConfig.secondaryUrl).origin;
-  const allSecondaryTabs = allTabs.filter(tab => {
     if (!tab.url) return false;
     try {
       const tabOrigin = new URL(tab.url).origin;
@@ -184,28 +166,20 @@ async function ensureTabsExist() {
     }
   });
   
-  if (allSecondaryTabs.length > 0) {
-    console.log('[Tab Keeper] Secondary tab(s) already exist:', allSecondaryTabs.length);
-    secondaryTabId = allSecondaryTabs[0].id;
     
-    if (allSecondaryTabs.length > 1) {
       console.log('[Tab Keeper] Closing duplicate secondary tabs...');
-      for (let i = 1; i < allSecondaryTabs.length; i++) {
-        chrome.tabs.remove(allSecondaryTabs[i].id);
       }
     }
   } else {
-    console.log('[Tab Keeper] Secondary tab not found - PWA should open it');
     // Don't create tab - PWA handles opening initial tabs
     secondaryTabId = null;
   }
   
-  console.log('[Tab Keeper] Tab IDs - Primary:', primaryTabId, 'Secondary:', secondaryTabId);
 }
 
-// Periodic check - ensure both target tabs exist (runs every 10 seconds)
+// Periodic check - ensure both target tab exists (runs every 10 seconds)
 async function ensureTargetTabsExist() {
-  console.log('[Tab Keeper] Periodic check - verifying target tabs exist');
+  console.log('[Tab Keeper] Periodic check - verifying target tab exists');
   
   const allTabs = await chrome.tabs.query({});
   
@@ -228,21 +202,16 @@ async function ensureTargetTabsExist() {
   }
   
   // Check secondary tab
-  const secondaryUrl = new URL(runtimeConfig.secondaryUrl);
   const secondaryExists = allTabs.some(tab => {
     if (!tab.url) return false;
     try {
       const tabUrl = new URL(tab.url);
-      return tabUrl.origin === secondaryUrl.origin && 
-             (tabUrl.pathname.includes('userLogin') || tabUrl.pathname === secondaryUrl.pathname);
     } catch (e) {
       return false;
     }
   });
   
   if (!secondaryExists) {
-    console.log('[Tab Keeper] Secondary tab missing - reopening');
-    const newTab = await chrome.tabs.create({ url: runtimeConfig.secondaryUrl, active: false });
     secondaryTabId = newTab.id;
   }
   
@@ -396,40 +365,28 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
     }
     
     // Check if secondary tab needs reopening (match by origin + path)
-    const secondaryUrl = new URL(runtimeConfig.secondaryUrl);
     const secondaryExists = allTabs.some(tab => {
       if (!tab.url) return false;
       try {
         const tabUrl = new URL(tab.url);
         // Match origin and ensure path contains the key part
-        return tabUrl.origin === secondaryUrl.origin && 
-               (tabUrl.pathname.includes('userLogin') || tabUrl.pathname === secondaryUrl.pathname);
       } catch (e) {
         return false;
       }
     });
     
     if (!secondaryExists) {
-      console.log('[Tab Keeper] Secondary tab closed - reopening');
-      console.log('[Tab Keeper] Secondary URL:', runtimeConfig.secondaryUrl);
-      const newTab = await chrome.tabs.create({ url: runtimeConfig.secondaryUrl, active: false });
       secondaryTabId = newTab.id;
       console.log('[Tab Keeper] ✓ Created secondary tab:', newTab.id);
     } else {
-      console.log('[Tab Keeper] Secondary tab still exists - skipping reopen');
       // Log which tab exists
-      const existingSecondary = allTabs.find(tab => {
         if (!tab.url) return false;
         try {
           const tabUrl = new URL(tab.url);
-          return tabUrl.origin === secondaryUrl.origin && 
-                 (tabUrl.pathname.includes('userLogin') || tabUrl.pathname === secondaryUrl.pathname);
         } catch (e) {
           return false;
         }
       });
-      if (existingSecondary) {
-        console.log('[Tab Keeper] Found existing secondary tab:', existingSecondary.id, 'URL:', existingSecondary.url);
       }
     }
   }, 1000);
@@ -478,11 +435,9 @@ async function handleTabSwitch(newTabId) {
     
     // Check if this is the primary tab (the only safe zone)
     const isPrimaryTab = tabUrl === runtimeConfig.primaryUrl || tabUrl?.startsWith(runtimeConfig.primaryUrl);
-    const isSecondaryTab = tabUrl === runtimeConfig.secondaryUrl || tabUrl?.startsWith(runtimeConfig.secondaryUrl);
     
     console.log('[Tab Keeper] Current tab URL:', tabUrl.substring(0, 80));
     console.log('[Tab Keeper] Is primary tab:', isPrimaryTab);
-    console.log('[Tab Keeper] Is secondary tab:', isSecondaryTab);
     
     if (isPrimaryTab) {
       console.log('[Tab Keeper] ON PRIMARY - stopping timer');
@@ -577,7 +532,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     getConfig(['timerActive', 'lastActivity', 'timerDuration', 'timerStartTime', 'timerSeconds']).then((state) => {
       sendResponse({
         primaryUrl: runtimeConfig.primaryUrl,
-        secondaryUrl: runtimeConfig.secondaryUrl,
         timerSeconds: runtimeConfig.timerSeconds,
         variant: runtimeConfig.variant,
         hasCredentials: !!(runtimeConfig.username && runtimeConfig.password),
