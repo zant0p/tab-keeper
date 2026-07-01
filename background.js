@@ -177,7 +177,7 @@ async function isOnline() {
 }
 
 // Ensure target tabs exist (auto-reopen if closed) - only when online
-// STRICT: Only 1 of each tab allowed, close all duplicates immediately
+// Rule: Create if missing (0), keep if exactly 1, close extras if >1
 async function ensureTabsExist() {
   // Check connectivity first
   if (!await isOnline()) {
@@ -199,16 +199,17 @@ async function ensureTabsExist() {
     }
   });
   
-  // ALWAYS enforce exactly 1 primary tab
+  // Primary tab logic: create if 0, keep first if >=1, close extras if >1
   if (allPrimaryTabs.length === 0) {
     console.log('[Tab Keeper] No primary tab found - creating one');
     const newTab = await chrome.tabs.create({ url: runtimeConfig.primaryUrl, active: false });
     primaryTabId = newTab.id;
   } else {
-    // Keep the first one, close ALL others
+    // Keep the first one
     primaryTabId = allPrimaryTabs[0].id;
+    // Close extras if more than 1
     if (allPrimaryTabs.length > 1) {
-      console.log('[Tab Keeper] Found', allPrimaryTabs.length, 'primary tabs - closing duplicates');
+      console.log('[Tab Keeper] Found', allPrimaryTabs.length, 'primary tabs - closing', allPrimaryTabs.length - 1, 'extras');
       for (let i = 1; i < allPrimaryTabs.length; i++) {
         chrome.tabs.remove(allPrimaryTabs[i].id);
       }
@@ -227,16 +228,17 @@ async function ensureTabsExist() {
     }
   });
   
-  // ALWAYS enforce exactly 1 secondary tab
+  // Secondary tab logic: create if 0, keep first if >=1, close extras if >1
   if (allSecondaryTabs.length === 0) {
     console.log('[Tab Keeper] No secondary tab found - creating one');
     const newTab = await chrome.tabs.create({ url: runtimeConfig.secondaryUrl, active: false });
     secondaryTabId = newTab.id;
   } else {
-    // Keep the first one, close ALL others
+    // Keep the first one
     secondaryTabId = allSecondaryTabs[0].id;
+    // Close extras if more than 1
     if (allSecondaryTabs.length > 1) {
-      console.log('[Tab Keeper] Found', allSecondaryTabs.length, 'secondary tabs - closing duplicates');
+      console.log('[Tab Keeper] Found', allSecondaryTabs.length, 'secondary tabs - closing', allSecondaryTabs.length - 1, 'extras');
       for (let i = 1; i < allSecondaryTabs.length; i++) {
         chrome.tabs.remove(allSecondaryTabs[i].id);
       }
@@ -247,7 +249,7 @@ async function ensureTabsExist() {
 }
 
 // Periodic check - ensure both target tabs exist (runs every 10 seconds, only when online)
-// STRICT: Enforce exactly 1 of each tab, close any duplicates
+// Rule: Create if missing (0), keep if exactly 1, close extras if >1
 async function ensureTargetTabsExist() {
   console.log('[Tab Keeper] Periodic check - enforcing single tab rule');
   
@@ -277,10 +279,10 @@ async function ensureTargetTabsExist() {
     const newTab = await chrome.tabs.create({ url: runtimeConfig.primaryUrl, active: false });
     primaryTabId = newTab.id;
   } else {
-    // Keep first, close rest
+    // Keep first, close extras
     primaryTabId = allPrimaryTabs[0].id;
     if (allPrimaryTabs.length > 1) {
-      console.log('[Tab Keeper] Found', allPrimaryTabs.length, 'primary tabs - closing', allPrimaryTabs.length - 1, 'duplicates');
+      console.log('[Tab Keeper] Found', allPrimaryTabs.length, 'primary tabs - closing', allPrimaryTabs.length - 1, 'extras');
       for (let i = 1; i < allPrimaryTabs.length; i++) {
         chrome.tabs.remove(allPrimaryTabs[i].id);
       }
@@ -305,10 +307,10 @@ async function ensureTargetTabsExist() {
     const newTab = await chrome.tabs.create({ url: runtimeConfig.secondaryUrl, active: false });
     secondaryTabId = newTab.id;
   } else {
-    // Keep first, close rest
+    // Keep first, close extras
     secondaryTabId = allSecondaryTabs[0].id;
     if (allSecondaryTabs.length > 1) {
-      console.log('[Tab Keeper] Found', allSecondaryTabs.length, 'secondary tabs - closing', allSecondaryTabs.length - 1, 'duplicates');
+      console.log('[Tab Keeper] Found', allSecondaryTabs.length, 'secondary tabs - closing', allSecondaryTabs.length - 1, 'extras');
       for (let i = 1; i < allSecondaryTabs.length; i++) {
         chrome.tabs.remove(allSecondaryTabs[i].id);
       }
