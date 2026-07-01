@@ -126,22 +126,64 @@ chrome.runtime.onInstalled.addListener(async () => {
   });
 });
 
-// On startup - open target tabs
+// On startup - open target tabs (with delay to let PWA sync first)
 chrome.runtime.onStartup.addListener(async () => {
   console.log('[Tab Keeper] Extension started');
   await loadConfig();
-  await ensureTabsExist();
+  // Wait 3 seconds for PWA to establish tabs first
+  setTimeout(async () => {
+    if (await isOnline()) {
+      await ensureTabsExist();
+    } else {
+      console.log('[Tab Keeper] Offline on startup - waiting for connection');
+    }
+  }, 3000);
 });
 
-// Also open tabs when extension is first loaded/refreshed
+// Also open tabs when extension is first loaded/refreshed (with delay)
 (async () => {
   console.log('[Tab Keeper] Background script loaded');
   await loadConfig();
-  await ensureTabsExist();
+  // Wait 3 seconds for PWA to establish tabs first
+  setTimeout(async () => {
+    if (await isOnline()) {
+      await ensureTabsExist();
+    } else {
+      console.log('[Tab Keeper] Offline on load - waiting for connection');
+    }
+  }, 3000);
 })();
 
-// Ensure target tabs exist (auto-reopen if closed)
+// Check internet connectivity
+async function isOnline() {
+  return new Promise((resolve) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    
+    fetch('https://10.1.129.207/', { 
+      method: 'HEAD',
+      signal: controller.signal,
+      mode: 'no-cors'
+    })
+    .then(() => {
+      clearTimeout(timeoutId);
+      resolve(true);
+    })
+    .catch(() => {
+      clearTimeout(timeoutId);
+      resolve(false);
+    });
+  });
+}
+
+// Ensure target tabs exist (auto-reopen if closed) - only when online
 async function ensureTabsExist() {
+  // Check connectivity first
+  if (!await isOnline()) {
+    console.log('[Tab Keeper] Offline - skipping tab creation/check');
+    return;
+  }
+  
   const allTabs = await chrome.tabs.query({});
   
   // Match by domain/origin for primary (handles URL changes after login)
@@ -203,9 +245,17 @@ async function ensureTabsExist() {
   console.log('[Tab Keeper] Tab IDs - Primary:', primaryTabId, 'Secondary:', secondaryTabId);
 }
 
-// Periodic check - ensure both target tabs exist (runs every 10 seconds)
+// Periodic check - ensure both target tabs exist (runs every 10 seconds, only when online)
 async function ensureTargetTabsExist() {
   console.log('[Tab Keeper] Periodic check - verifying target tabs exist');
+  
+  // Check connectivity first - skip if offline
+  if (!await isOnline()) {
+    console.log('[Tab Keeper] Offline - skipping periodic tab check');
+    // Schedule next check anyway to retry later
+    setTimeout(ensureTargetTabsExist, 10000);
+    return;
+  }
   
   const allTabs = await chrome.tabs.query({});
   
@@ -250,9 +300,16 @@ async function ensureTargetTabsExist() {
   setTimeout(ensureTargetTabsExist, 10000);
 }
 
-// Start periodic check after a 5-second delay
-setTimeout(ensureTargetTabsExist, 5000);
-console.log('[Tab Keeper] Periodic tab check scheduled (every 10 seconds)');
+// Start periodic check after a 5-second delay (with online check)
+setTimeout(async () => {
+  if (await isOnline()) {
+    ensureTargetTabsExist();
+  } else {
+    console.log('[Tab Keeper] Offline on startup - delaying periodic checks');
+    setTimeout(ensureTargetTabsExist, 10000);
+  }
+}, 5000);
+console.log('[Tab Keeper] Periodic tab check scheduled (every 10 seconds, online-only)');
 
 // Listen for alarm events
 chrome.alarms.onAlarm.addListener(async (alarm) => {
@@ -367,12 +424,18 @@ async function installActivityListener(tabId) {
   }
 }
 
-// Monitor tab closure - auto-reopen target tabs
+// Monitor tab closure - auto-reopen target tabs (only when online)
 chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
   console.log('[Tab Keeper] Tab closed:', tabId);
   
-  // Reopen after a short delay
+  // Reopen after a short delay, but only if online
   setTimeout(async () => {
+    // Check connectivity first
+    if (!await isOnline()) {
+      console.log('[Tab Keeper] Offline - skipping tab reopen');
+      return;
+    }
+    
     const allTabs = await chrome.tabs.query({});
     
     // Check if primary tab needs reopening (match by origin)
