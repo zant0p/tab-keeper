@@ -156,20 +156,21 @@ async function ensureTabsExist() {
     }
   });
   
-  if (allPrimaryTabs.length > 0) {
-    console.log('[Tab Keeper] Primary tab(s) already exist:', allPrimaryTabs.length);
+  // Primary tab logic: create if 0, keep first if >=1, close extras if >1
+  if (allPrimaryTabs.length === 0) {
+    console.log('[Tab Keeper] No primary tab found - creating one');
+    const newTab = await chrome.tabs.create({ url: runtimeConfig.primaryUrl, active: false });
+    primaryTabId = newTab.id;
+  } else {
+    // Keep the first one
     primaryTabId = allPrimaryTabs[0].id;
-    
+    // Close extras if more than 1
     if (allPrimaryTabs.length > 1) {
-      console.log('[Tab Keeper] Closing duplicate primary tabs...');
+      console.log('[Tab Keeper] Found', allPrimaryTabs.length, 'primary tabs - closing', allPrimaryTabs.length - 1, 'extras');
       for (let i = 1; i < allPrimaryTabs.length; i++) {
         chrome.tabs.remove(allPrimaryTabs[i].id);
       }
     }
-  } else {
-    console.log('[Tab Keeper] Primary tab not found - PWA should open it');
-    // Don't create tab - PWA handles opening initial tabs
-    primaryTabId = null;
   }
   
   // Match by domain for secondary
@@ -184,34 +185,36 @@ async function ensureTabsExist() {
     }
   });
   
-  if (allSecondaryTabs.length > 0) {
-    console.log('[Tab Keeper] Secondary tab(s) already exist:', allSecondaryTabs.length);
+  // Secondary tab logic: create if 0, keep first if >=1, close extras if >1
+  if (allSecondaryTabs.length === 0) {
+    console.log('[Tab Keeper] No secondary tab found - creating one');
+    const newTab = await chrome.tabs.create({ url: runtimeConfig.secondaryUrl, active: false });
+    secondaryTabId = newTab.id;
+  } else {
+    // Keep the first one
     secondaryTabId = allSecondaryTabs[0].id;
-    
+    // Close extras if more than 1
     if (allSecondaryTabs.length > 1) {
-      console.log('[Tab Keeper] Closing duplicate secondary tabs...');
+      console.log('[Tab Keeper] Found', allSecondaryTabs.length, 'secondary tabs - closing', allSecondaryTabs.length - 1, 'extras');
       for (let i = 1; i < allSecondaryTabs.length; i++) {
         chrome.tabs.remove(allSecondaryTabs[i].id);
       }
     }
-  } else {
-    console.log('[Tab Keeper] Secondary tab not found - PWA should open it');
-    // Don't create tab - PWA handles opening initial tabs
-    secondaryTabId = null;
   }
   
   console.log('[Tab Keeper] Tab IDs - Primary:', primaryTabId, 'Secondary:', secondaryTabId);
 }
 
 // Periodic check - ensure both target tabs exist (runs every 10 seconds)
+// Rule: Create if missing (0), keep if exactly 1, close extras if >1
 async function ensureTargetTabsExist() {
-  console.log('[Tab Keeper] Periodic check - verifying target tabs exist');
+  console.log('[Tab Keeper] Periodic check - enforcing single tab rule');
   
   const allTabs = await chrome.tabs.query({});
   
-  // Check primary tab
+  // Check primary tabs - enforce exactly 1
   const primaryUrl = new URL(runtimeConfig.primaryUrl);
-  const primaryExists = allTabs.some(tab => {
+  const allPrimaryTabs = allTabs.filter(tab => {
     if (!tab.url) return false;
     try {
       const tabUrl = new URL(tab.url);
@@ -221,15 +224,24 @@ async function ensureTargetTabsExist() {
     }
   });
   
-  if (!primaryExists) {
-    console.log('[Tab Keeper] Primary tab missing - reopening');
+  if (allPrimaryTabs.length === 0) {
+    console.log('[Tab Keeper] Primary tab missing - creating one');
     const newTab = await chrome.tabs.create({ url: runtimeConfig.primaryUrl, active: false });
     primaryTabId = newTab.id;
+  } else {
+    // Keep first, close extras
+    primaryTabId = allPrimaryTabs[0].id;
+    if (allPrimaryTabs.length > 1) {
+      console.log('[Tab Keeper] Found', allPrimaryTabs.length, 'primary tabs - closing', allPrimaryTabs.length - 1, 'extras');
+      for (let i = 1; i < allPrimaryTabs.length; i++) {
+        chrome.tabs.remove(allPrimaryTabs[i].id);
+      }
+    }
   }
   
-  // Check secondary tab
+  // Check secondary tabs - enforce exactly 1
   const secondaryUrl = new URL(runtimeConfig.secondaryUrl);
-  const secondaryExists = allTabs.some(tab => {
+  const allSecondaryTabs = allTabs.filter(tab => {
     if (!tab.url) return false;
     try {
       const tabUrl = new URL(tab.url);
@@ -240,10 +252,19 @@ async function ensureTargetTabsExist() {
     }
   });
   
-  if (!secondaryExists) {
-    console.log('[Tab Keeper] Secondary tab missing - reopening');
+  if (allSecondaryTabs.length === 0) {
+    console.log('[Tab Keeper] Secondary tab missing - creating one');
     const newTab = await chrome.tabs.create({ url: runtimeConfig.secondaryUrl, active: false });
     secondaryTabId = newTab.id;
+  } else {
+    // Keep first, close extras
+    secondaryTabId = allSecondaryTabs[0].id;
+    if (allSecondaryTabs.length > 1) {
+      console.log('[Tab Keeper] Found', allSecondaryTabs.length, 'secondary tabs - closing', allSecondaryTabs.length - 1, 'extras');
+      for (let i = 1; i < allSecondaryTabs.length; i++) {
+        chrome.tabs.remove(allSecondaryTabs[i].id);
+      }
+    }
   }
   
   // Schedule next check
