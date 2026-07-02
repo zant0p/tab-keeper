@@ -905,6 +905,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             } else {
               console.log('[Auto-Login] No login method found');
             }
+            
+            // After clicking login, wait and check for post-login popups
+            setTimeout(() => {
+              console.log('[Auto-Login] Checking for post-login popups...');
+              
+              // Handle "License Inactive" popup
+              const licenseAlerts = document.querySelectorAll('ion-alert, [aria-label*="license"], .alert-wrapper');
+              licenseAlerts.forEach(alert => {
+                console.log('[Auto-Login] Found license alert');
+                const okBtn = alert.querySelector('ion-button, button');
+                if (okBtn) {
+                  console.log('[Auto-Login] Auto-clicking OK on license popup');
+                  if (okBtn.tagName === 'ION-BUTTON') {
+                    const shadowBtn = okBtn.shadowRoot?.querySelector('button');
+                    if (shadowBtn) shadowBtn.click();
+                    else okBtn.click();
+                  } else {
+                    okBtn.click();
+                  }
+                }
+              });
+              
+              // Handle iconic/success navigation buttons
+              const successButtons = document.querySelectorAll(
+                'ion-button[class*="success"], ion-button[class*="confirm"], ' +
+                'ion-button[class*="enter"], ion-button[class*="home"], ' +
+                '[class*="iconic-button"], [class*="nav-button"]'
+              );
+              successButtons.forEach(btn => {
+                if (btn.offsetWidth > 0 && btn.offsetHeight > 0) {
+                  console.log('[Auto-Login] Auto-clicking success/nav button');
+                  if (btn.tagName === 'ION-BUTTON') {
+                    const shadowBtn = btn.shadowRoot?.querySelector('button');
+                    if (shadowBtn) shadowBtn.click();
+                    else btn.click();
+                  } else {
+                    btn.click();
+                  }
+                }
+              });
+            }, 2000);
           }, 500);
         },
         args: [creds.username, creds.password]
