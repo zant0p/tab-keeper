@@ -219,14 +219,17 @@ window.addEventListener('beforeunload', () => {
 });
 // AGGRESSIVE Chrome Breach Popup Handler for Kiosk Mode
 // This runs every 500ms to detect and dismiss Chrome's password breach dialog
+// Also handles "License Inactive" popup and auto-clicks success buttons
 
 (function() {
   'use strict';
   
   let breachPopupClosed = false;
+  let licensePopupClosed = false;
+  let iconButtonPushed = false;
   
   function closeBreachPopup() {
-    if (breachPopupClosed) return; // Already handled
+    if (breachPopupClosed && licensePopupClosed && iconButtonPushed) return; // Already handled
     
     console.log('[Tab Keeper] Checking for breach popup...');
     
@@ -282,7 +285,165 @@ window.addEventListener('beforeunload', () => {
       }
     });
     
-    // Method 5: Simulate clicking anywhere on screen (last resort)
+    // Method 6: Handle "License Inactive" popup from Arial (Ionic dialog)
+  if (!licensePopupClosed) {
+    // Arial-specific Ionic alert selectors
+    const licenseSelectors = [
+      'ion-alert',
+      'ion-alert.sc-ion-alert-md',
+      'ion-alert.sc-ion-alert-ios',
+      '.alert-wrapper',
+      '.alert-backdrop',
+      '[aria-label*="license"]',
+      '[aria-label*="inactive"]',
+      '[class*="license"]',
+      '[class*="inactive"]'
+    ];
+    
+    licenseSelectors.forEach(selector => {
+      const dialogs = document.querySelectorAll(selector);
+      dialogs.forEach(dialog => {
+        console.log('[Tab Keeper] Found Arial license popup:', selector);
+        
+        // Look for OK button inside Ionic alert
+        const okButtons = dialog.querySelectorAll('ion-button, button, .alert-button');
+        okButtons.forEach(btn => {
+          const text = (btn.textContent || btn.getAttribute('aria-label') || '').toLowerCase().trim();
+          const buttonText = text;
+          
+          // Match OK, Close, Dismiss, or any single-word short button in license popup
+          if (text === 'ok' || text === 'close' || text === 'dismiss' || 
+              text.includes('ok') || (buttonText.length <= 4 && text !== 'cancel')) {
+            console.log('[Tab Keeper] Clicking OK button in license popup:', text);
+            if (btn.tagName === 'ION-BUTTON') {
+              // Handle Ionic shadow DOM
+              const shadowBtn = btn.shadowRoot?.querySelector('button');
+              if (shadowBtn) {
+                shadowBtn.click();
+                console.log('[Tab Keeper] Clicked shadow DOM button');
+              } else {
+                // Try clicking the native button inside ion-button
+                const nativeBtn = btn.querySelector('button');
+                if (nativeBtn) {
+                  nativeBtn.click();
+                  console.log('[Tab Keeper] Clicked native button inside ion-button');
+                } else {
+                  btn.click();
+                  console.log('[Tab Keeper] Clicked ion-button directly');
+                }
+              }
+            } else {
+              btn.click();
+              console.log('[Tab Keeper] Clicked regular button');
+            }
+            licensePopupClosed = true;
+          }
+        });
+        
+        // If no specific OK button found, try clicking the first button in the alert
+        if (okButtons.length > 0 && !licensePopupClosed) {
+          const firstBtn = okButtons[0];
+          console.log('[Tab Keeper] Clicking first button in license popup');
+          if (firstBtn.tagName === 'ION-BUTTON') {
+            const shadowBtn = firstBtn.shadowRoot?.querySelector('button');
+            if (shadowBtn) shadowBtn.click();
+            else firstBtn.click();
+          } else {
+            firstBtn.click();
+          }
+          licensePopupClosed = true;
+        }
+        
+        // Last resort: click the alert wrapper itself
+        if (!licensePopupClosed) {
+          console.log('[Tab Keeper] Clicking alert wrapper');
+          dialog.click();
+          licensePopupClosed = true;
+        }
+      });
+    });
+  }
+  
+  // Method 7: Auto-click iconic/success button after login (Arial Ionic button)
+  if (!iconButtonPushed) {
+    // Look for success/confirmation buttons that appear after login in Arial
+    const successSelectors = [
+      'ion-button[class*="success"]',
+      'ion-button[class*="confirm"]',
+      'ion-button[class*="enter"]',
+      'ion-button[class*="home"]',
+      'ion-button[class*="dashboard"]',
+      'ion-button[class*="menu"]',
+      'ion-button[class*="nav"]',
+      '[class*="iconic-button"]',
+      '[class*="nav-button"]',
+      'button[class*="success"]',
+      'button[class*="confirm"]',
+      // Arial-specific: buttons with icons
+      'ion-button ion-icon',
+      'ion-toolbar ion-button',
+      'ion-header ion-button'
+    ];
+    
+    successSelectors.forEach(selector => {
+      const buttons = document.querySelectorAll(selector);
+      buttons.forEach(btn => {
+        // Get the actual button element (handle ion-icon children)
+        const actualBtn = btn.closest('ion-button, button, [role="button"]') || btn;
+        
+        if (actualBtn.offsetWidth > 0 && actualBtn.offsetHeight > 0) { // Only visible buttons
+          const text = (actualBtn.textContent || '').toLowerCase().trim();
+          
+          // Skip login/submit buttons, look for navigation/action buttons
+          if (text !== 'login' && text !== 'sign in' && text !== 'submit' && text !== 'cancel') {
+            console.log('[Tab Keeper] Auto-clicking iconic/success button:', selector);
+            if (actualBtn.tagName === 'ION-BUTTON') {
+              // Handle Ionic shadow DOM properly
+              const shadowBtn = actualBtn.shadowRoot?.querySelector('button');
+              if (shadowBtn) {
+                shadowBtn.click();
+                console.log('[Tab Keeper] Clicked shadow DOM button');
+              } else {
+                const nativeBtn = actualBtn.querySelector('button');
+                if (nativeBtn) {
+                  nativeBtn.click();
+                  console.log('[Tab Keeper] Clicked native button inside ion-button');
+                } else {
+                  actualBtn.click();
+                  console.log('[Tab Keeper] Clicked ion-button directly');
+                }
+              }
+            } else {
+              actualBtn.click();
+              console.log('[Tab Keeper] Clicked regular button');
+            }
+            iconButtonPushed = true;
+          }
+        }
+      });
+    });
+    
+    // Also check for any visible Ionic buttons in toolbar/header (likely navigation)
+    const toolbarButtons = document.querySelectorAll('ion-toolbar ion-button, ion-header ion-button, ion-footer ion-button');
+    toolbarButtons.forEach(btn => {
+      if (btn.offsetWidth > 0 && btn.offsetHeight > 0 && !iconButtonPushed) {
+        const text = (btn.textContent || '').toLowerCase().trim();
+        if (text !== 'login' && text !== 'sign in' && text !== 'submit') {
+          console.log('[Tab Keeper] Auto-clicking toolbar ion-button');
+          if (btn.tagName === 'ION-BUTTON') {
+            const shadowBtn = btn.shadowRoot?.querySelector('button');
+            if (shadowBtn) shadowBtn.click();
+            else btn.click();
+          } else {
+            btn.click();
+          }
+          iconButtonPushed = true;
+        }
+      }
+    });
+  }
+  
+  // Method 5: Simulate clicking anywhere on screen (last resort)
     if (!breachPopupClosed) {
       const centerX = window.innerWidth / 2;
       const centerY = window.innerHeight / 2;
@@ -298,16 +459,16 @@ window.addEventListener('beforeunload', () => {
   // Run immediately
   closeBreachPopup();
   
-  // Check every 500ms for first 10 seconds
+  // Check every 500ms for first 30 seconds (extended to catch delayed popups)
   const checkInterval = setInterval(() => {
     closeBreachPopup();
   }, 500);
   
-  // Stop after 10 seconds
+  // Stop after 30 seconds
   setTimeout(() => {
     clearInterval(checkInterval);
     console.log('[Tab Keeper] Stopped breach popup detection');
-  }, 10000);
+  }, 30000);
   
   // Also run when page becomes visible
   document.addEventListener('visibilitychange', () => {
