@@ -130,28 +130,28 @@ chrome.runtime.onInstalled.addListener(async () => {
 chrome.runtime.onStartup.addListener(async () => {
   console.log('[Tab Keeper] Extension started');
   await loadConfig();
-  // Wait 3 seconds for PWA to establish tabs first
+  // Wait 15 seconds for PWA to establish tabs first
   setTimeout(async () => {
     if (await isOnline()) {
       await ensureTabsExist();
     } else {
       console.log('[Tab Keeper] Offline on startup - waiting for connection');
     }
-  }, 3000);
+  }, 15000);
 });
 
 // Also open tabs when extension is first loaded/refreshed (with delay)
 (async () => {
   console.log('[Tab Keeper] Background script loaded');
   await loadConfig();
-  // Wait 3 seconds for PWA to establish tabs first
+  // Wait 15 seconds for PWA to establish tabs first
   setTimeout(async () => {
     if (await isOnline()) {
       await ensureTabsExist();
     } else {
       console.log('[Tab Keeper] Offline on load - waiting for connection');
     }
-  }, 3000);
+  }, 15000);
 })();
 
 // Check internet connectivity
