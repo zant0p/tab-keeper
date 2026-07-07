@@ -1,11 +1,10 @@
-// Tab Keeper - Popup Script (v2.0.0)
+// Tab Keeper - Popup Script (v2.0.6) - Kiosk Mode
 
 let countdownInterval = null;
 
 async function updateUI() {
   const statusEl = document.getElementById('status');
   const primaryUrlEl = document.getElementById('primaryUrl');
-  const secondaryUrlEl = document.getElementById('secondaryUrl');
   const timerDisplay = document.getElementById('timerDisplay');
   const countdownEl = document.getElementById('countdown');
   const variantEl = document.getElementById('variant');
@@ -21,15 +20,6 @@ async function updateUI() {
     
     // Show config
     primaryUrlEl.textContent = config.primaryUrl || 'Not configured';
-    secondaryUrlEl.textContent = config.secondaryUrl || 'Not configured';
-
-    if (!config.enabled && config.enabled !== undefined) {
-      statusEl.className = 'status inactive';
-      statusEl.textContent = 'Tab Keeper is disabled';
-      timerDisplay.style.display = 'none';
-      stopCountdown();
-      return;
-    }
 
     if (!config.primaryUrl) {
       statusEl.className = 'status inactive';
@@ -44,26 +34,17 @@ async function updateUI() {
       const currentTab = tabs[0];
       const isOnPrimary = currentTab && currentTab.url && 
         (currentTab.url === config.primaryUrl || currentTab.url.startsWith(config.primaryUrl));
-      const isOnSecondary = config.secondaryUrl && currentTab && currentTab.url &&
-        (currentTab.url === config.secondaryUrl || currentTab.url.startsWith(config.secondaryUrl));
 
       if (isOnPrimary) {
         statusEl.className = 'status active';
         statusEl.textContent = '✅ On primary tab (safe zone)';
         timerDisplay.style.display = 'none';
         stopCountdown();
-      } else if (isOnSecondary) {
-        const mins = Math.floor(config.timerDuration / 60000);
-        const secs = Math.floor((config.timerDuration % 60000) / 1000);
-        statusEl.className = 'status waiting';
-        statusEl.textContent = `⚠️ On secondary tab (timer running, ~${mins}m ${secs}s)`;
-        timerDisplay.style.display = 'block';
-        startCountdown(config.lastActivity, config.timerDuration);
       } else if (config.timerActive && config.lastActivity) {
         const mins = Math.floor(config.timerDuration / 60000);
         const secs = Math.floor((config.timerDuration % 60000) / 1000);
         statusEl.className = 'status waiting';
-        statusEl.textContent = `⏰ Away from targets (returning in ~${mins}m ${secs}s)`;
+        statusEl.textContent = `⏰ Away from tab (returning in ~${mins}m ${secs}s)`;
         timerDisplay.style.display = 'block';
         startCountdown(config.lastActivity, config.timerDuration);
       } else {
@@ -112,7 +93,7 @@ document.getElementById('openOptions').addEventListener('click', () => {
 });
 
 document.getElementById('launchPages').addEventListener('click', () => {
-  console.log('[Popup] Launch pages button clicked');
+  console.log('[Popup] Launch tab button clicked');
   chrome.runtime.sendMessage({ action: 'launchPages' }, (response) => {
     console.log('[Popup] Launch response:', response);
     if (response && response.status === 'launched') {
