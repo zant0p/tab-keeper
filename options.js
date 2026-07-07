@@ -1,4 +1,4 @@
-// Tab Keeper - Options Page Script (v2.0.0)
+// Tab Keeper - Options Page Script (v2.0.6) - Kiosk Mode
 
 // Get the current variant from background script
 async function loadSettings() {
@@ -12,10 +12,7 @@ async function loadSettings() {
   const passwordField = document.getElementById('password');
   
   if (status && status.variant) {
-    if (status.variant === 'AL') {
-      usernameField.value = 'alstaff';
-      passwordField.value = 'alstaff';
-    } else if (status.variant === 'SNF') {
+    if (status.variant === 'SNF') {
       usernameField.value = 'snf';
       passwordField.value = 'snf';
     } else {
@@ -25,10 +22,7 @@ async function loadSettings() {
   } else {
     // Fallback: try to detect from URL
     const primaryUrl = await chrome.runtime.sendMessage({ action: 'getStatus' }).then(s => s?.primaryUrl || '');
-    if (primaryUrl.includes('/AL/')) {
-      usernameField.value = 'alstaff';
-      passwordField.value = 'alstaff';
-    } else if (primaryUrl.includes('/SNF/')) {
+    if (primaryUrl.includes('/SNF/')) {
       usernameField.value = 'snf';
       passwordField.value = 'snf';
     } else {
@@ -39,17 +33,15 @@ async function loadSettings() {
   
   // Load timer setting from local storage
   const config = await chrome.storage.local.get(['timerSeconds']);
-  const timerSeconds = config.timerSeconds || 300; // Default 300 seconds (5 minutes)
+  const timerSeconds = config.timerSeconds || 600; // Default 600 seconds (10 minutes)
   
   document.getElementById('timerSeconds').value = timerSeconds;
   
-  // URLs are hardcoded in v2.0.0, but show them for reference
+  // URLs are hardcoded, show them for reference
   document.getElementById('primaryUrl').value = 'https://10.1.129.207/Arial/#/login';
-  document.getElementById('secondaryUrl').value = 'https://login.pointclickcare.com/poc/userLogin.xhtml';
   
-  // Disable URL fields (hardcoded in v2.0.0)
+  // Disable URL field (hardcoded)
   document.getElementById('primaryUrl').disabled = true;
-  document.getElementById('secondaryUrl').disabled = true;
   
   console.log('[Options] Settings loaded, variant:', status?.variant);
 }

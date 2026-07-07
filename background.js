@@ -1,6 +1,6 @@
-// Tab Keeper SNF Call - Background Service Worker (v2.0.5)
-// Single tab monitoring for Aria website only
-// Timer in seconds, keeps primary tab alive, handles Chrome breach popup
+// Tab Keeper SNF Call - Background Service Worker (v2.0.6)
+// Single tab monitoring for Aria website only - KIOSK MODE
+// Timer in seconds, keeps primary tab alive, handles auto-login
 
 // URLs - defaults can be overridden via chrome.storage.managed (enterprise policies)
 const DEFAULT_PRIMARY_URL = 'https://10.1.129.207/Arial/#/login';
@@ -18,14 +18,13 @@ let runtimeConfig = {
   timerSeconds: DEFAULT_TIMER_SECONDS,
   username: DEFAULT_USERNAME,
   password: DEFAULT_PASSWORD,
-  variant: null
+  variant: 'SNF'
 };
 
 // State
 let isSwitchingBack = false;
 let activityListenerInstalled = false;
 let primaryTabId = null;
-let secondaryTabId = null;
 
 // Load configuration from managed storage (enterprise policies) or use defaults
 async function loadConfig() {
@@ -35,29 +34,15 @@ async function loadConfig() {
         console.log('[Tab Keeper] Managed storage not available, using defaults');
       }
       
-      // Detect variant from URL if not specified in managed storage
-      let detectedVariant = null;
-      if (managedResult && managedResult.primaryUrl) {
-        if (managedResult.primaryUrl.includes('/AL/')) {
-          detectedVariant = 'AL';
-        } else if (managedResult.primaryUrl.includes('/SNF/')) {
-          detectedVariant = 'SNF';
-        }
-      } else if (DEFAULT_PRIMARY_URL.includes('/AL/')) {
-        detectedVariant = 'AL';
-      }
-      
       // Auto-set credentials based on variant if not provided in managed storage
       let username = (managedResult && managedResult.username) || DEFAULT_USERNAME;
       let password = (managedResult && managedResult.password) || DEFAULT_PASSWORD;
       
-      // If no credentials in managed storage, use variant defaults
+      // If no credentials in managed storage, use SNF defaults
       if (!username || !password) {
-        if (detectedVariant === 'AL') {
-          console.log('[Tab Keeper] Using AL variant default credentials');
-        } else if (detectedVariant === 'SNF') {
-          console.log('[Tab Keeper] Using SNF variant default credentials');
-        }
+        username = DEFAULT_USERNAME;
+        password = DEFAULT_PASSWORD;
+        console.log('[Tab Keeper] Using SNF variant default credentials');
       }
       
       // Merge managed config with defaults
@@ -66,13 +51,12 @@ async function loadConfig() {
         timerSeconds: (managedResult && managedResult.timerMinutes) ? managedResult.timerMinutes * 60 : DEFAULT_TIMER_SECONDS,
         username: username,
         password: password,
-        variant: detectedVariant
+        variant: 'SNF'
       };
       
       console.log('[Tab Keeper] Config loaded:', {
         primaryUrl: runtimeConfig.primaryUrl,
         timerSeconds: runtimeConfig.timerSeconds,
-        variant: runtimeConfig.variant,
         hasCredentials: !!(runtimeConfig.username && runtimeConfig.password)
       });
       
@@ -101,7 +85,7 @@ async function setConfig(data) {
 
 // Initialize on install - load config from managed storage
 chrome.runtime.onInstalled.addListener(async () => {
-  console.log('[Tab Keeper] Installed v2.0.0 (Web Store compliant)');
+  console.log('[Tab Keeper] Installed v2.0.6 (Kiosk Mode - Single Tab)');
   await loadConfig();
   // Set defaults
   setConfig({
@@ -110,22 +94,22 @@ chrome.runtime.onInstalled.addListener(async () => {
   });
 });
 
-// On startup - open target tabs
+// On startup - open target tab
 chrome.runtime.onStartup.addListener(async () => {
   console.log('[Tab Keeper] Extension started');
   await loadConfig();
-  await ensureTabsExist();
+  await ensureTabExists();
 });
 
-// Also open tabs when extension is first loaded/refreshed
+// Also open tab when extension is first loaded/refreshed
 (async () => {
   console.log('[Tab Keeper] Background script loaded');
   await loadConfig();
-  await ensureTabsExist();
+  await ensureTabExists();
 })();
 
 // Ensure target tab exists (auto-reopen if closed)
-async function ensureTabsExist() {
+async function ensureTabExists() {
   const allTabs = await chrome.tabs.query({});
   
   // Match by domain/origin for primary (handles URL changes after login)
@@ -155,30 +139,10 @@ async function ensureTabsExist() {
     // Don't create tab - PWA handles opening initial tabs
     primaryTabId = null;
   }
-  
-  // Match by domain for secondary
-    if (!tab.url) return false;
-    try {
-      const tabOrigin = new URL(tab.url).origin;
-      return tabOrigin === secondaryOrigin;
-    } catch (e) {
-      return false;
-    }
-  });
-  
-    
-      console.log('[Tab Keeper] Closing duplicate secondary tabs...');
-      }
-    }
-  } else {
-    // Don't create tab - PWA handles opening initial tabs
-    secondaryTabId = null;
-  }
-  
 }
 
-// Periodic check - ensure both target tab exists (runs every 10 seconds)
-async function ensureTargetTabsExist() {
+// Periodic check - ensure target tab exists (runs every 10 seconds)
+async function ensureTargetTabExists() {
   console.log('[Tab Keeper] Periodic check - verifying target tab exists');
   
   const allTabs = await chrome.tabs.query({});
@@ -201,26 +165,12 @@ async function ensureTargetTabsExist() {
     primaryTabId = newTab.id;
   }
   
-  // Check secondary tab
-  const secondaryExists = allTabs.some(tab => {
-    if (!tab.url) return false;
-    try {
-      const tabUrl = new URL(tab.url);
-    } catch (e) {
-      return false;
-    }
-  });
-  
-  if (!secondaryExists) {
-    secondaryTabId = newTab.id;
-  }
-  
   // Schedule next check
-  setTimeout(ensureTargetTabsExist, 10000);
+  setTimeout(ensureTargetTabExists, 10000);
 }
 
 // Start periodic check after a 5-second delay
-setTimeout(ensureTargetTabsExist, 5000);
+setTimeout(ensureTargetTabExists, 5000);
 console.log('[Tab Keeper] Periodic tab check scheduled (every 10 seconds)');
 
 // Listen for alarm events
@@ -336,7 +286,7 @@ async function installActivityListener(tabId) {
   }
 }
 
-// Monitor tab closure - auto-reopen target tabs
+// Monitor tab closure - auto-reopen target tab
 chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
   console.log('[Tab Keeper] Tab closed:', tabId);
   
@@ -362,32 +312,6 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
       primaryTabId = newTab.id;
     } else {
       console.log('[Tab Keeper] Primary tab still exists - skipping reopen');
-    }
-    
-    // Check if secondary tab needs reopening (match by origin + path)
-    const secondaryExists = allTabs.some(tab => {
-      if (!tab.url) return false;
-      try {
-        const tabUrl = new URL(tab.url);
-        // Match origin and ensure path contains the key part
-      } catch (e) {
-        return false;
-      }
-    });
-    
-    if (!secondaryExists) {
-      secondaryTabId = newTab.id;
-      console.log('[Tab Keeper] ✓ Created secondary tab:', newTab.id);
-    } else {
-      // Log which tab exists
-        if (!tab.url) return false;
-        try {
-          const tabUrl = new URL(tab.url);
-        } catch (e) {
-          return false;
-        }
-      });
-      }
     }
   }, 1000);
 });
@@ -522,7 +446,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   if (message.action === 'launchPages') {
     console.log('[Tab Keeper] Launch pages requested');
-    ensureTabsExist().then(() => {
+    ensureTabExists().then(() => {
       sendResponse({ status: 'launched' });
     });
     return true;
@@ -783,36 +707,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } catch (error) {
       console.error('[Tab Keeper] Auto-login injection failed:', error);
     }
-    return true;
-  }
-  
-  // Handle Chrome breach popup dismissal (AL variant only)
-  if (message.action === 'closeBreachPopup') {
-    console.log('[Tab Keeper] Closing breach popup');
-    chrome.scripting.executeScript({
-      target: { tabId: sender.tab.id },
-      func: () => {
-        // Look for Chrome's password breach notification dialog
-        const dialogs = document.querySelectorAll('div[role="dialog"], .mdc-dialog, [aria-label*="password"], [aria-label*="breach"]');
-        dialogs.forEach(dialog => {
-          const closeBtn = dialog.querySelector('button') || dialog.querySelector('[role="button"]');
-          if (closeBtn) {
-            console.log('[Breach Popup] Closing dialog');
-            closeBtn.click();
-          }
-        });
-        
-        // Also try to find by text content
-        const allButtons = document.querySelectorAll('button');
-        allButtons.forEach(btn => {
-          const text = btn.textContent.toLowerCase();
-          if (text.includes('dismiss') || text.includes('close') || text.includes('cancel')) {
-            btn.click();
-          }
-        });
-      }
-    });
-    sendResponse({ status: 'ok' });
     return true;
   }
 });

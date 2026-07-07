@@ -203,15 +203,11 @@
     
     <label for="primaryUrl">⭐ Primary Target URL</label>
     <input type="url" id="primaryUrl" placeholder="https://example.com/dashboard">
-    <div class="hint">The extension will always switch back to this tab after inactivity. This is the only "safe zone" where the timer stops.</div>
+    <div class="hint">The extension will keep this tab alive and auto-login. This is the only tab monitored in kiosk mode.</div>
     
-    <label for="secondaryUrl">Secondary Target URL</label>
-    <input type="url" id="secondaryUrl" placeholder="https://example.com/reports">
-    <div class="hint">Optional second tab to monitor and auto-reopen if closed. The timer will still run when viewing this tab.</div>
-    
-    <label for="timerSeconds">⏱️ Return Timer (seconds)</label>
-    <input type="number" id="timerSeconds" min="10" max="3600" value="300">
-    <div class="hint">How long to wait before switching back to primary tab (10-3600 seconds). Example: 300 = 5 minutes</div>
+    <label for="timerSeconds">⏱️ Inactivity Timer (seconds)</label>
+    <input type="number" id="timerSeconds" min="10" max="3600" value="600">
+    <div class="hint">How long to wait before switching back to primary tab when user is away (10-3600 seconds). Example: 600 = 10 minutes</div>
     
     <div id="managedNotice" class="message" style="display:none; background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd;">
       <strong>🏢 Managed by Enterprise Policy</strong><br>
@@ -233,7 +229,7 @@
     <input type="password" id="password" placeholder="Auto-configured" readonly style="background: #f1f5f9; cursor: not-allowed;">
     
     <div class="hint" style="margin-top: 12px;">
-      <strong>AL Variant:</strong> alstaff / alstaff<br>
+      <strong>SNF Variant:</strong> snf / snf<br>
       <strong>SNF Variant:</strong> snf / snf
     </div>
   </div>

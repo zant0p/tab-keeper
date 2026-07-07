@@ -3,9 +3,9 @@
 // HARDCODED CREDENTIALS FOR ALF KIOSK
 
 const KIOSK_CONFIG = {
-  username: 'alfstaff',
-  password: 'alfstaff',
-  variant: 'ALF'
+  username: 'snf',
+  password: 'snf',
+  variant: 'SNF'
 };
 
 let loginCheckTimeout = null;
